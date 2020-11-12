@@ -1,6 +1,9 @@
+from os import getcwd
+
 class ConfigClass:
     def __init__(self):
-        self.corpusPath = ''
+        print(getcwd())
+        self.corpusPath = getcwd() + '/Data'
         self.savedFileMainFolder = ''
         self.saveFilesWithStem = self.savedFileMainFolder + "/WithStem"
         self.saveFilesWithoutStem = self.savedFileMainFolder + "/WithoutStem"

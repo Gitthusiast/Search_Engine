@@ -1,3 +1,6 @@
+from os import walk
+from glob import glob
+
 from reader import ReadFile
 from configuration import ConfigClass
 from parser_module import Parse
@@ -18,16 +21,17 @@ def run_engine():
     p = Parse()
     indexer = Indexer(config)
 
-    documents_list = r.read_file(file_name='sample3.parquet')
-    # Iterate over every document in the file
-    for idx, document in enumerate(documents_list):
-        # parse the document
-        parsed_document = p.parse_doc(document)
-        number_of_documents += 1
-        # index the document data
-        indexer.add_new_doc(parsed_document)
+    files = glob(config.get__corpusPath() + "/**/*.parquet", recursive=True)
+    for file in files:
+        documents_list = r.read_file(file)
+        # Iterate over every document in the file
+        for document in documents_list:
+            # parse the document
+            parsed_document = p.parse_doc(document)
+            number_of_documents += 1
+            # index the document data
+            indexer.add_new_doc(parsed_document)
     print('Finished parsing and indexing. Starting to export files')
-
     utils.save_obj(indexer.inverted_idx, "inverted_idx")
     utils.save_obj(indexer.postingDict, "posting")
 
