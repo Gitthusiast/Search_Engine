@@ -85,6 +85,41 @@ class Parse:
                         insertion_index += 1
                     from_index = j + 1
 
+    def parse_numeric_values(self, text_tokens, index):
+
+        token = text_tokens[index]
+        numeric_token = float(token.replace(",", ""))
+
+        # format large numbers
+        if 1000 <= numeric_token < 1000000:
+            formatted_token = "{num:.3f}".format(num=(numeric_token / 1000)).rstrip("0").rstrip(".") + "K"
+            text_tokens[index] = formatted_token
+        elif text_tokens[index + 1].lower() == "thousand":
+            formatted_token = str(numeric_token).rstrip("0").rstrip(".") + "K"
+            text_tokens[index] = formatted_token
+            text_tokens.remove(index+1)
+        elif 1000000 <= numeric_token < 1000000000:
+            formatted_token = "{num:.3f}".format(num=numeric_token / 1000000).rstrip("0").rstrip(".") + "M"
+            text_tokens[index] = formatted_token
+        elif text_tokens[index + 1].lower() == "million":
+            formatted_token = str(numeric_token).rstrip("0").rstrip(".") + "M"
+            text_tokens[index] = formatted_token
+            text_tokens.remove(index+1)
+        elif 1000000000 <= numeric_token:
+            formatted_token = "{num:.3f}".format(num=numeric_token / 1000000000).rstrip("0").rstrip(".") + "B"
+            text_tokens[index] = formatted_token
+        elif text_tokens[index + 1].lower() == "billion":
+            formatted_token = str(numeric_token).rstrip("0").rstrip(".") + "B"
+            text_tokens[index] = formatted_token
+            text_tokens.remove(index+1)
+
+        # parse percentage
+        lower_case_next_token = text_tokens[index + 1].lower()
+        if lower_case_next_token == "%" or lower_case_next_token == "percent" \
+                or lower_case_next_token == "percentage":
+            formatted_token = str(numeric_token).rstrip("0").rstrip(".") + "%"
+            text_tokens[index] = formatted_token
+            text_tokens.remove(index+1)
 
     def parse_sentence(self, text):
 
@@ -93,24 +128,50 @@ class Parse:
         :param text:
         :return:
         """
+
+        text = "1000 in 6 % and 7.9% 4567983 so 123.5 thousand and 100,000 = 1,123% 8000382195 and 3.3 percent is 60 percentage so 4.04 Billion"
         text_tokens = word_tokenize(text)
 
         for index, token in enumerate(text_tokens):
-            if token == '#':
-                self.parse_hashtag(text_tokens, index)
-            if token == '@':
-                self.parse_tagging(text_tokens, index)
-            if token == 'https' or token == 'http':
-                self.parse_url(text_tokens, index)
 
-        print(text_tokens)
-        text_tokens_without_stopwords = [w.lower() for w in text_tokens if w not in self.stop_words]
-        return text_tokens_without_stopwords
+            if token not in self.stop_words:
+
+                if token == '#':
+                    self.parse_hashtag(text_tokens, index)
+                if token == '@':
+                    self.parse_tagging(text_tokens, index)
+                if token == 'https' or token == 'http':
+                    self.parse_url(text_tokens, index)
+
+                # parse numeric values
+                if self.is_float(token):
+                    self.parse_numeric_values(text_tokens, index)
+
+
+                # parse entities
+                # entity is every sequence of tokens starting with a capital letter \
+                # and appearing at least twice in the entire corpus
+                if token[0].isupper():
+
+                    current_token = token
+                    entities = set()
+                    while current_token[0].isupper():
+                        if current_token not in entities:
+                            entities.add(current_token)
+
+                            if "-" in token:
+                                splitted_by_dash = token.split("-")
+                                insert_index = index + 1
+                                for splitted_token in splitted_by_dash:
+                                    text_tokens.insert(insert_index, splitted_token)
+                                    insert_index = insert_index + 1
+
+        return text_tokens
 
     def parse_doc(self, doc_as_list):
         """
         This function takes a tweet document as list and break it into different fields
-        :param doc_as_list: list re-preseting the tweet.
+        :param doc_as_list: list re-presenting the tweet.
         :return: Document object with corresponding fields.
         """
         tweet_id = doc_as_list[0]
@@ -135,3 +196,20 @@ class Parse:
         document = Document(tweet_id, tweet_date, full_text, url, retweet_text, retweet_url, quote_text,
                             quote_url, term_dict, doc_length)
         return document
+
+    """
+    Verify if a string can be converted to float
+    :param number - string to be converted
+    :return Boolean - can be converted or not
+    """
+    def is_float(self, number):
+
+        try:
+            float(number)
+            if number != "infinity":
+                return True
+        except ValueError:
+
+            if number.replace(",", "").isnumeric():
+                return True
+            return False

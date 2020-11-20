@@ -1,5 +1,6 @@
 from os import walk
 from glob import glob
+from time import perf_counter
 
 from reader import ReadFile
 from configuration import ConfigClass
@@ -21,7 +22,7 @@ def run_engine():
     p = Parse()
     indexer = Indexer(config)
 
-    files = glob(config.get__corpusPath() + "/**/*.parquet", recursive=True)
+    files = glob(config.get__corpusPath() + "Data/**/*.parquet", recursive=True)
     for file in files:
         documents_list = r.read_file(file)
         # Iterate over every document in the file
@@ -34,6 +35,10 @@ def run_engine():
     print('Finished parsing and indexing. Starting to export files')
     utils.save_obj(indexer.inverted_idx, "inverted_idx")
     utils.save_obj(indexer.postingDict, "posting")
+
+    # docs = r.read_file("sample3.parquet")
+    # for doc in docs:
+    #     parsed = p.parse_doc(doc)
 
 
 def load_index():
