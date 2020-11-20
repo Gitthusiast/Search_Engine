@@ -4,6 +4,8 @@ class Indexer:
         self.inverted_idx = {}
         self.postingDict = {}
         self.config = config
+        self.entity_dict = {}
+        self.capital_terms_dict = {}
 
     def add_new_doc(self, document):
         """
@@ -19,6 +21,8 @@ class Indexer:
             try:
                 # Update inverted index and posting
                 if term not in self.inverted_idx.keys():
+
+                    #
                     self.inverted_idx[term] = 1
                     self.postingDict[term] = []
                 else:
