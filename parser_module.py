@@ -51,15 +51,8 @@ class Parse:
             self.parse_hashtag_underscore(text_tokens, i)
 
         # parsing pascal and camel cases
-        camel_case = True
         if len(text_tokens) > i + 1:
-            # for j in range(len(text_tokens[i+1])-1):
-            #     if text_tokens[i+1][j].isupper() and text_tokens[i+1][j+1].isupper():
-            #         camel_case = False  # not camel case - word of type "CULTforGOOD" different parsing
-            if camel_case:
-                self.parse_hashtag_camel_case(text_tokens, i)
-            # else:
-            #     self.parse_hashtag_capital(text_tokens, i)  # parsing words with capital letters - acronyms
+            self.parse_hashtag_camel_case(text_tokens, i)
 
     def parse_tagging(self, text_tokens, i):
 
@@ -69,7 +62,6 @@ class Parse:
 
     def parse_url(self, text_tokens, i):
         if len(text_tokens) > i+1:
-            # text_tokens.remove(text_tokens[i+1])  # removing ':'
             del text_tokens[i+1]  # removing ':'
             link_token = text_tokens[i+1]
             text_tokens.remove(text_tokens[i + 1])  # to remove the previous token
