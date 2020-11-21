@@ -6,12 +6,23 @@ from string import punctuation
 
 class Parse:
 
+    months = {"jan": 1, "january": 1, "feb": 2, "february": 2, "mar": 3, "march": 3, "apr": 4, "april": 4,
+              "may": 5, "jun": 6, "june": 6, "jul": 7, "july": 7, "aug": 8, "august": 8, "sep": 9, "september": 9,
+              "oct": 10, "october": 10, "nov": 11, "november": 11, "dec": 12, "december": 12}
+
+    days = {"first": 1, "1st": 1, "second": 2, "2nd": 2, "third": 3, "fourth": 4, "4th": 4, "fifth": 5, "5th": 5,
+            "sixth": 6, "6th": 6, "seventh": 7, "7th": 7, "eighth": 8, "8th": 8, "ninth": 9, "9th": 9,
+            "tenth	": 10, "10th": 10, "eleventh": 11, "11th": 11, "twelfth": 12, "12th": 12, "thirteenth": 13,
+            "13th": 13, "fourteenth": 14, "14th": 14, "fifteenth": 15, "15th": 15, "sixteenth": 16, "16th": 16,
+            "seventeenth": 17, "17th": 17, "eighteenth": 18, "18th": 18, "nineteenth": 19, "19th": 19,
+            "twentieth": 20, "twenty": 20, "thirtieth": 30, "30th": 30, "thirty": 30}
+
     def __init__(self):
         self.stop_words = stopwords.words('english')
 
     def parse_hashtag_underscore(self, text_tokens, i):
-        token = text_tokens[i+1]
-        text_tokens.remove(text_tokens[i+1])
+        token = text_tokens[i + 1]
+        del text_tokens[i + 1]
         joined_hashtag = '#'
         from_index = 0
         insertion_index = 0
@@ -28,7 +39,7 @@ class Parse:
 
     def parse_hashtag_camel_case(self, text_tokens, i):
         token = text_tokens[i + 1]
-        text_tokens.remove(text_tokens[i + 1])
+        del text_tokens[i + 1]
         j = 0
         joined_hashtag = '#'
         from_index = 0
@@ -57,15 +68,15 @@ class Parse:
 
     def parse_tagging(self, text_tokens, i):
 
-        if len(text_tokens) > i+1:
-            text_tokens[i] += text_tokens[i+1]
-            text_tokens.remove(text_tokens[i+1])
+        if len(text_tokens) > i + 1:
+            text_tokens[i] += text_tokens[i + 1]
+            del text_tokens[i + 1]
 
     def parse_url(self, text_tokens, i):
         if len(text_tokens) > i+1:
             del text_tokens[i+1]  # removing ':'
             link_token = text_tokens[i+1]
-            text_tokens.remove(text_tokens[i + 1])  # to remove the previous token
+            del text_tokens[i + 1]  # to remove the previous token
             from_index = 0
             insertion_index = 0
             for j in range(len(link_token)):
@@ -90,21 +101,21 @@ class Parse:
         elif len(text_tokens) > index + 1 and text_tokens[index + 1].lower() == "thousand":
             formatted_token = str(numeric_token).rstrip("0").rstrip(".") + "K"
             text_tokens[index] = formatted_token
-            text_tokens.remove(text_tokens[index+1])
+            del text_tokens[index+1]
         elif 1000000 <= numeric_token < 1000000000:
             formatted_token = "{num:.3f}".format(num=numeric_token / 1000000).rstrip("0").rstrip(".") + "M"
             text_tokens[index] = formatted_token
         elif len(text_tokens) > index + 1 and text_tokens[index + 1].lower() == "million":
             formatted_token = str(numeric_token).rstrip("0").rstrip(".") + "M"
             text_tokens[index] = formatted_token
-            text_tokens.remove(text_tokens[index+1])
+            del text_tokens[index+1]
         elif 1000000000 <= numeric_token:
             formatted_token = "{num:.3f}".format(num=numeric_token / 1000000000).rstrip("0").rstrip(".") + "B"
             text_tokens[index] = formatted_token
         elif len(text_tokens) > index + 1 and text_tokens[index + 1].lower() == "billion":
             formatted_token = str(numeric_token).rstrip("0").rstrip(".") + "B"
             text_tokens[index] = formatted_token
-            text_tokens.remove(text_tokens[index+1])
+            del text_tokens[index+1]
 
         # parse percentage
         if len(text_tokens) > index + 1:
@@ -113,7 +124,13 @@ class Parse:
                     or lower_case_next_token == "percentage":
                 formatted_token = str(numeric_token).rstrip("0").rstrip(".") + "%"
                 text_tokens[index] = formatted_token
-            text_tokens.remove(text_tokens[index+1])
+                del text_tokens[index+1]
+
+    def parse_date(self, text_tokens, index):
+
+        if len(text_tokens) > index + 1:
+            if len(text_tokens[index + 1]) > 2 and text_tokens[index + 1][-2:] == "th":
+                i = 0
 
     def parse_sentence(self, text):
 
@@ -122,8 +139,7 @@ class Parse:
         :param text:
         :return:
         """
-        # text = "1000 in 6 % and 7.9% 4567983 so 123.5 thousand and 100,000 = 1,123% 8000382195 and 3.3 percent is 60 percentage so 4.04 Billion"
-        print(text)
+        # print(text)
         text_tokens = word_tokenize(text)
 
         index = 0
@@ -143,6 +159,9 @@ class Parse:
                 # parse numeric values
                 if self.is_float(token):
                     self.parse_numeric_values(text_tokens, index)
+
+                if token.lower() in self.months:
+                    self.parse_date(text_tokens, index)
 
                 # parse entities
                 # entity is every sequence of tokens starting with a capital letter \
