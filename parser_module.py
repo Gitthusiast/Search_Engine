@@ -1,6 +1,7 @@
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from document import Document
+from string import punctuation
 
 
 class Parse:
@@ -51,15 +52,8 @@ class Parse:
             self.parse_hashtag_underscore(text_tokens, i)
 
         # parsing pascal and camel cases
-        camel_case = True
         if len(text_tokens) > i + 1:
-            # for j in range(len(text_tokens[i+1])-1):
-            #     if text_tokens[i+1][j].isupper() and text_tokens[i+1][j+1].isupper():
-            #         camel_case = False  # not camel case - word of type "CULTforGOOD" different parsing
-            if camel_case:
-                self.parse_hashtag_camel_case(text_tokens, i)
-            # else:
-            #     self.parse_hashtag_capital(text_tokens, i)  # parsing words with capital letters - acronyms
+            self.parse_hashtag_camel_case(text_tokens, i)
 
     def parse_tagging(self, text_tokens, i):
 
@@ -69,7 +63,6 @@ class Parse:
 
     def parse_url(self, text_tokens, i):
         if len(text_tokens) > i+1:
-            # text_tokens.remove(text_tokens[i+1])  # removing ':'
             del text_tokens[i+1]  # removing ':'
             link_token = text_tokens[i+1]
             text_tokens.remove(text_tokens[i + 1])  # to remove the previous token
@@ -94,32 +87,33 @@ class Parse:
         if 1000 <= numeric_token < 1000000:
             formatted_token = "{num:.3f}".format(num=(numeric_token / 1000)).rstrip("0").rstrip(".") + "K"
             text_tokens[index] = formatted_token
-        elif text_tokens[index + 1].lower() == "thousand":
+        elif len(text_tokens) > index + 1 and text_tokens[index + 1].lower() == "thousand":
             formatted_token = str(numeric_token).rstrip("0").rstrip(".") + "K"
             text_tokens[index] = formatted_token
-            text_tokens.remove(index+1)
+            text_tokens.remove(text_tokens[index+1])
         elif 1000000 <= numeric_token < 1000000000:
             formatted_token = "{num:.3f}".format(num=numeric_token / 1000000).rstrip("0").rstrip(".") + "M"
             text_tokens[index] = formatted_token
-        elif text_tokens[index + 1].lower() == "million":
+        elif len(text_tokens) > index + 1 and text_tokens[index + 1].lower() == "million":
             formatted_token = str(numeric_token).rstrip("0").rstrip(".") + "M"
             text_tokens[index] = formatted_token
-            text_tokens.remove(index+1)
+            text_tokens.remove(text_tokens[index+1])
         elif 1000000000 <= numeric_token:
             formatted_token = "{num:.3f}".format(num=numeric_token / 1000000000).rstrip("0").rstrip(".") + "B"
             text_tokens[index] = formatted_token
-        elif text_tokens[index + 1].lower() == "billion":
+        elif len(text_tokens) > index + 1 and text_tokens[index + 1].lower() == "billion":
             formatted_token = str(numeric_token).rstrip("0").rstrip(".") + "B"
             text_tokens[index] = formatted_token
-            text_tokens.remove(index+1)
+            text_tokens.remove(text_tokens[index+1])
 
         # parse percentage
-        lower_case_next_token = text_tokens[index + 1].lower()
-        if lower_case_next_token == "%" or lower_case_next_token == "percent" \
-                or lower_case_next_token == "percentage":
-            formatted_token = str(numeric_token).rstrip("0").rstrip(".") + "%"
-            text_tokens[index] = formatted_token
-            text_tokens.remove(index+1)
+        if len(text_tokens) > index + 1:
+            lower_case_next_token = text_tokens[index + 1].lower()
+            if lower_case_next_token == "%" or lower_case_next_token == "percent" \
+                    or lower_case_next_token == "percentage":
+                formatted_token = str(numeric_token).rstrip("0").rstrip(".") + "%"
+                text_tokens[index] = formatted_token
+            text_tokens.remove(text_tokens[index+1])
 
     def parse_sentence(self, text):
 
@@ -128,13 +122,16 @@ class Parse:
         :param text:
         :return:
         """
-
-        text = "1000 in 6 % and 7.9% 4567983 so 123.5 thousand and 100,000 = 1,123% 8000382195 and 3.3 percent is 60 percentage so 4.04 Billion"
+        # text = "1000 in 6 % and 7.9% 4567983 so 123.5 thousand and 100,000 = 1,123% 8000382195 and 3.3 percent is 60 percentage so 4.04 Billion"
+        print(text)
         text_tokens = word_tokenize(text)
 
-        for index, token in enumerate(text_tokens):
+        index = 0
+        while index < len(text_tokens):
 
-            if token not in self.stop_words:
+            token = text_tokens[index]
+            if token not in self.stop_words and token not in ["RT"] and token not in \
+                    punctuation.replace('#', '').replace('@', '').replace('%', '').replace('$', '') and token.isascii():
 
                 if token == '#':
                     self.parse_hashtag(text_tokens, index)
@@ -147,24 +144,40 @@ class Parse:
                 if self.is_float(token):
                     self.parse_numeric_values(text_tokens, index)
 
-
                 # parse entities
                 # entity is every sequence of tokens starting with a capital letter \
                 # and appearing at least twice in the entire corpus
-                if token[0].isupper():
+                # if token[0].isupper():
+                #
+                #     current_token = token
+                #     entities = set()
+                #     while current_token[0].isupper():
+                #         if current_token not in entities:
+                #             entities.add(current_token)
+                #
+                #             if "-" in token:
+                #                 splitted_by_dash = token.split("-")
+                #                 insert_index = index + 1
+                #                 for splitted_token in splitted_by_dash:
+                #                     text_tokens.insert(insert_index, splitted_token)
+                #                     insert_index = insert_index + 1
+                index += 1
+            else:
+                if not token.isascii():
+                    i = 0
+                    valid_token = ""
+                    while i < len(token):
+                        if token[i].isascii():
+                            valid_token += token[i]
+                        i += 1
+                    if valid_token != '':
+                        text_tokens[index] = valid_token
+                    else:
+                        del text_tokens[index]
+                else:
+                    del text_tokens[index]
 
-                    current_token = token
-                    entities = set()
-                    while current_token[0].isupper():
-                        if current_token not in entities:
-                            entities.add(current_token)
-
-                            if "-" in token:
-                                splitted_by_dash = token.split("-")
-                                insert_index = index + 1
-                                for splitted_token in splitted_by_dash:
-                                    text_tokens.insert(insert_index, splitted_token)
-                                    insert_index = insert_index + 1
+        print(text_tokens)
 
         return text_tokens
 
@@ -205,11 +218,8 @@ class Parse:
     def is_float(self, number):
 
         try:
-            float(number)
-            if number != "infinity":
+            float(number.replace(",", ""))
+            if number.lower() != "infinity":
                 return True
         except ValueError:
-
-            if number.replace(",", "").isnumeric():
-                return True
             return False
