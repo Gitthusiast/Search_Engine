@@ -22,7 +22,7 @@ def run_engine():
     p = Parse()
     indexer = Indexer(config)
 
-    files = glob(config.get__corpusPath() + "Data/**/*.parquet", recursive=True)
+    files = glob(config.get__corpusPath() + "/Data/**/*.parquet", recursive=True)
     for file in files:
         documents_list = r.read_file(file)
         # Iterate over every document in the file
