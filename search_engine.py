@@ -22,23 +22,23 @@ def run_engine():
     p = Parse()
     indexer = Indexer(config)
 
-    files = glob(config.get__corpusPath() + "/Data/**/*.parquet", recursive=True)
-    for file in files:
-        documents_list = r.read_file(file)
-        # Iterate over every document in the file
-        for document in documents_list:
-            # parse the document
-            parsed_document = p.parse_doc(document)
-            number_of_documents += 1
-            # index the document data
-            indexer.add_new_doc(parsed_document)
-    print('Finished parsing and indexing. Starting to export files')
-    utils.save_obj(indexer.inverted_idx, "inverted_idx")
-    utils.save_obj(indexer.postingDict, "posting")
+    # files = glob(config.get__corpusPath() + "/Data/**/*.parquet", recursive=True)
+    # for file in files:
+    #     documents_list = r.read_file(file)
+    #     # Iterate over every document in the file
+    #     for document in documents_list:
+    #         # parse the document
+    #         parsed_document = p.parse_doc(document)
+    #         number_of_documents += 1
+    #         # index the document data
+    #         indexer.add_new_doc(parsed_document)
+    # print('Finished parsing and indexing. Starting to export files')
+    # utils.save_obj(indexer.inverted_idx, "inverted_idx")
+    # utils.save_obj(indexer.postingDict, "posting")
 
-    # docs = r.read_file("sample3.parquet")
-    # for doc in docs:
-    #     parsed = p.parse_doc(doc)
+    docs = r.read_file("sample3.parquet")
+    for doc in docs:
+        parsed = p.parse_doc(doc)
 
 
 def load_index():
