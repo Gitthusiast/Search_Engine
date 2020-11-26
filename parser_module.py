@@ -89,7 +89,7 @@ class Parse:
         this function calls to parse underscore or parse camel case respectively
         """
         # parsing snake case
-        if len(text_tokens) > i + 1 and text_tokens[i+1].count('_') > 0:
+        if len(text_tokens) > i + 1 and text_tokens[i + 1].count('_') > 0:
             self.parse_hashtag_underscore(text_tokens, i)
 
         # parsing pascal and camel cases
@@ -122,42 +122,68 @@ class Parse:
                 text_tokens[i + 1] = "www"
                 text_tokens.insert(i + 2, link_token.lstrip("w."))
 
+    def is_float(self, number):
+
+        """
+        Verify if a string can be converted to float
+        :param number - string to be converted
+        :return Boolean - can be converted or not
+        """
+
+        try:
+            float(number.replace(",", ""))
+            if number.lower() != "infinity":
+                return True
+        except ValueError:
+            return False
+
     def parse_numeric_values(self, text_tokens, index):
+
+        """
+        Parse numeric tokens according to specified rules.
+        Any number in the thousands, millions and billions will be abbreviated to #K, #M and #B respectively
+        Any number signifying percentage will be shown as #%
+        Fractions of the format #/# will stay the same
+        :param text_tokens: list of tokens to be parsed
+        :param index: index of currently parsed token
+        """
 
         token = text_tokens[index]
         numeric_token = float(token.replace(",", ""))
 
         # format large numbers
+        # any number in the thousands, millions and billions will be abbreviated to #K, #M and #B respectively
         if 1000 <= numeric_token < 1000000:
             formatted_token = "{num:.3f}".format(num=(numeric_token / 1000)).rstrip("0").rstrip(".") + "K"
             text_tokens[index] = formatted_token
         elif len(text_tokens) > index + 1 and text_tokens[index + 1].lower() == "thousand":
             formatted_token = str(numeric_token).rstrip("0").rstrip(".") + "K"
             text_tokens[index] = formatted_token
-            del text_tokens[index+1]
+            del text_tokens[index + 1]
         elif 1000000 <= numeric_token < 1000000000:
             formatted_token = "{num:.3f}".format(num=numeric_token / 1000000).rstrip("0").rstrip(".") + "M"
             text_tokens[index] = formatted_token
         elif len(text_tokens) > index + 1 and text_tokens[index + 1].lower() == "million":
             formatted_token = str(numeric_token).rstrip("0").rstrip(".") + "M"
             text_tokens[index] = formatted_token
-            del text_tokens[index+1]
+            del text_tokens[index + 1]
         elif 1000000000 <= numeric_token:
             formatted_token = "{num:.3f}".format(num=numeric_token / 1000000000).rstrip("0").rstrip(".") + "B"
             text_tokens[index] = formatted_token
         elif len(text_tokens) > index + 1 and text_tokens[index + 1].lower() == "billion":
             formatted_token = str(numeric_token).rstrip("0").rstrip(".") + "B"
             text_tokens[index] = formatted_token
-            del text_tokens[index+1]
+            del text_tokens[index + 1]
 
         # parse percentage
+        # any number signifying percentage will be shown as #%
         if len(text_tokens) > index + 1:
             lower_case_next_token = text_tokens[index + 1].lower()
             if lower_case_next_token == "%" or lower_case_next_token == "percent" \
                     or lower_case_next_token == "percentage":
                 formatted_token = str(numeric_token).rstrip("0").rstrip(".") + "%"
                 text_tokens[index] = formatted_token
-                del text_tokens[index+1]
+                del text_tokens[index + 1]
 
     def parse_date_according_to_month(self, text_tokens, index):
         """
@@ -225,12 +251,88 @@ class Parse:
         else:
             return False
 
-    def parse_sentence(self, text):
+    def parse_entities(self, text_tokens, index, entities):
+
+        """
+        Identify possible entities in the document.
+        A possible entity is any sequence of tokens starting with a capital letter
+        :param text_tokens: list of tokens to be parsed
+        :param index: index of current parsed token
+        :param entities: dictionary of possible entities
+        """
+        current_token = text_tokens[index]
+        entity = ""
+
+        # find a sequence of terms with capital letters
+        while index < len(text_tokens) - 1 and current_token[0].isupper():
+            entity += current_token + " "
+            index += 1
+            current_token = text_tokens[index]
+        entity.rstrip(" ")
+
+        # add new possible entity to dictionary
+        if entity not in entities:
+            entities[entity] = 1
+        else:
+            entities[entity] += 1
+
+    def parse_capital_letters(self, tokenized_text, term_dict):
+
+        """
+        Parses token according to capital letters rule.
+        Ensures a uniform appearance of tokens - if a token only appears in capital form - record as upper case
+        Else, record in lower case
+        :param tokenized_text - list, list of parsed tokens
+        :param term_dict - dictionary, record uniform token appearance according to rule in currently parsed document
+        """
+
+        index = 0
+        while index < len(tokenized_text):
+
+            token = tokenized_text[index]
+
+            # save token as upper case
+            # save token as lower and upper case
+            formatted_token_lower = token.lower()
+            formatted_token_upper = token.upper()
+
+            # Add token to term dictionary
+            # In the dictionary keep the term_frequency
+            # term_frequency - how many times the term appeared in the document
+            # key indicates if term is capital or lower case
+
+            # Check if first letter is a capital letter
+            if token[0].isupper():
+                # check in which form the token appears in dictionary and update it accordingly
+                if formatted_token_upper not in term_dict and formatted_token_lower not in term_dict:
+                    term_dict[formatted_token_upper] = 1
+                elif formatted_token_upper in term_dict:
+                    term_dict[formatted_token_upper] += 1
+                else:  # formatted_token_lower in capitals
+                    term_dict[formatted_token_lower] += 1
+
+            # If current term is lower case change key to lower case
+            else:
+                # check in which form the token appears in dictionary and update it accordingly
+                if formatted_token_upper not in term_dict and formatted_token_lower not in term_dict:
+                    term_dict[formatted_token_lower] = 1
+                elif formatted_token_upper in term_dict:  # replace format of token from upper case to lower case
+                    term_dict[formatted_token_lower] = term_dict[formatted_token_upper] + 1
+                    term_dict.pop(formatted_token_upper, None)  # remove upper case form from the dictionary
+                else:  # formatted_token_lower in capitals
+                    term_dict[formatted_token_lower] += 1
+
+            index += 1
+
+    def parse_sentence(self, text, entities=None):
 
         """
         This function tokenize, remove stop words and apply lower case for every word within the text
+        :param text: string - text to be parsed
+        :param entities: dictionary - record possible entities in currently parsed document
+        :return: list of parsed tokens
         """
-        emoji_list = []
+
         text_tokens = word_tokenize(text)
 
         index = 0
@@ -258,6 +360,7 @@ class Parse:
                 if self.is_float(token):
                     self.parse_numeric_values(text_tokens, index)
 
+                # parse dates
                 if token.lower() in self.months:
                     self.parse_date_according_to_month(text_tokens, index)
 
@@ -267,6 +370,12 @@ class Parse:
                 if token.count("/") == 1:
                     if self.parse_fraction(text_tokens, index):
                         continue
+
+                # parse entities
+                # entity is every sequence of tokens starting with a capital letter \
+                # and appearing at least twice in the entire corpus
+                if index < len(text_tokens) - 1 and token[0].isupper() and text_tokens[index + 1][0].isupper():
+                    self.parse_entities(text_tokens, index, entities)
 
                 index += 1
             else:
@@ -289,7 +398,6 @@ class Parse:
                         del text_tokens[index]  # not ascii symbols that we want to delete
                 else:
                     del text_tokens[index]  # RT or punctuation that is in ascii
-
         print(text_tokens)
         return text_tokens
 
@@ -337,31 +445,19 @@ class Parse:
             quote_url = self.get_valid_url(doc_as_list[9])
             quote_url = self.prep_url(quote_url)
         term_dict = {}
-        tokenized_text = self.parse_sentence(full_text + " " + quote_text + " " + url + " "
-                                             + retweet_url + " " + quote_url)
+
+        # dictionary for holding possible entities
+        entities = dict()
+
+        pre_processed_text = full_text + " " + quote_text + " " + url + " " + retweet_url + " " + quote_url
+        tokenized_text = self.parse_sentence(pre_processed_text, entities)
 
         doc_length = len(tokenized_text)  # after text operations.
 
-        for term in tokenized_text:
-            if term not in term_dict.keys():
-                term_dict[term] = 1
-            else:
-                term_dict[term] += 1
+        # parse token by lower or upper case rule
+        # parsing will build the term dictionary in a uniform upper/lower form and calculate the term frequency
+        self.parse_capital_letters(tokenized_text, term_dict)
 
         document = Document(tweet_id, tweet_date, full_text, url, retweet_text, retweet_url, quote_text,
-                            quote_url, term_dict, doc_length)
+                            quote_url, term_dict, doc_length, entities)
         return document
-
-    """
-    Verify if a string can be converted to float
-    :param number - string to be converted
-    :return Boolean - can be converted or not
-    """
-    def is_float(self, number):
-
-        try:
-            float(number.replace(",", ""))
-            if number.lower() != "infinity":
-                return True
-        except ValueError:
-            return False
