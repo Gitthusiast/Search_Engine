@@ -4,8 +4,8 @@ from document import Document
 from string import punctuation
 from demoji import findall
 
-class Parse:
 
+class Parse:
     months = {"jan": "1", "january": "1", "feb": "2", "february": "2", "mar": "3", "march": "3", "apr": "4",
               "april": "4", "may": "5", "jun": "6", "june": "6", "jul": "7", "july": "7", "aug": "8", "august": "8",
               "sep": "9", "september": "9", "oct": "10", "october": "10", "nov": "11", "november": "11", "dec": "12",
@@ -24,7 +24,6 @@ class Parse:
 
     def __init__(self):
         self.stop_words = stopwords.words('english')
-
 
     def get_valid_url(self, url_col):
         """
@@ -113,9 +112,9 @@ class Parse:
         :param text_tokens: list of tokens
         :param i: index of "https"
         """
-        if len(text_tokens) > i+1:
-            del text_tokens[i+1]  # removing ':'
-            link_token = text_tokens[i+1]
+        if len(text_tokens) > i + 1:
+            del text_tokens[i + 1]  # removing ':'
+            link_token = text_tokens[i + 1]
 
             # splitting the first www.
             if "www" in link_token.split("."):
@@ -202,11 +201,11 @@ class Parse:
         elif index - 1 >= 0:
             if text_tokens[index - 1] in self.days:  # 15th July
                 text_tokens[index] = self.months.get(text_tokens[index].lower()) + \
-                                 "~" + self.days.get(text_tokens[index - 1])
+                                     "~" + self.days.get(text_tokens[index - 1])
                 del text_tokens[index - 1]
             elif text_tokens[index - 1].isnumeric():  # 15 July
                 text_tokens[index] = self.months.get(text_tokens[index].lower()) + \
-                                 "~" + str(int(text_tokens[index - 1]))
+                                     "~" + str(int(text_tokens[index - 1]))
                 del text_tokens[index - 1]
             elif text_tokens[index - 1] == "of" and index - 2 >= 0 \
                     and text_tokens[index - 2] in self.days:  # 15th of July
@@ -215,7 +214,7 @@ class Parse:
                 del text_tokens[index - 1]
                 del text_tokens[index - 1]
             elif text_tokens[index - 1] == "of" and text_tokens[index - 2].isnumeric():  # 15 of july
-                text_tokens[index] = self.months.get(text_tokens[index].lower()) +\
+                text_tokens[index] = self.months.get(text_tokens[index].lower()) + \
                                      "~" + str(int(text_tokens[index - 2]))
                 del text_tokens[index - 1]
                 del text_tokens[index - 1]
@@ -308,7 +307,7 @@ class Parse:
                     term_dict[formatted_token_upper] = 1
                 elif formatted_token_upper in term_dict:
                     term_dict[formatted_token_upper] += 1
-                else:  # formatted_token_lower in capitals
+                else:  # token appears in lower case in dictionary
                     term_dict[formatted_token_lower] += 1
 
             # If current term is lower case change key to lower case
@@ -319,7 +318,7 @@ class Parse:
                 elif formatted_token_upper in term_dict:  # replace format of token from upper case to lower case
                     term_dict[formatted_token_lower] = term_dict[formatted_token_upper] + 1
                     term_dict.pop(formatted_token_upper, None)  # remove upper case form from the dictionary
-                else:  # formatted_token_lower in capitals
+                else:  # token appears in lower case in dictionary
                     term_dict[formatted_token_lower] += 1
 
             index += 1
@@ -398,7 +397,7 @@ class Parse:
                         del text_tokens[index]  # not ascii symbols that we want to delete
                 else:
                     del text_tokens[index]  # RT or punctuation that is in ascii
-        print(text_tokens)
+
         return text_tokens
 
     def prep_url(self, url):
