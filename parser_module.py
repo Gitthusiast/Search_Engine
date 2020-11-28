@@ -2,41 +2,69 @@ from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from document import Document
 from string import punctuation
+from demoji import findall
 
 
 class Parse:
-    months = {"jan": 1, "january": 1, "feb": 2, "february": 2, "mar": 3, "march": 3, "apr": 4, "april": 4,
-              "may": 5, "jun": 6, "june": 6, "jul": 7, "july": 7, "aug": 8, "august": 8, "sep": 9, "september": 9,
-              "oct": 10, "october": 10, "nov": 11, "november": 11, "dec": 12, "december": 12}
+    months = {"jan": "1", "january": "1", "feb": "2", "february": "2", "mar": "3", "march": "3", "apr": "4",
+              "april": "4", "may": "5", "jun": "6", "june": "6", "jul": "7", "july": "7", "aug": "8", "august": "8",
+              "sep": "9", "september": "9", "oct": "10", "october": "10", "nov": "11", "november": "11", "dec": "12",
+              "december": "12"}
 
-    days = {"first": 1, "1st": 1, "second": 2, "2nd": 2, "third": 3, "fourth": 4, "4th": 4, "fifth": 5, "5th": 5,
-            "sixth": 6, "6th": 6, "seventh": 7, "7th": 7, "eighth": 8, "8th": 8, "ninth": 9, "9th": 9,
-            "tenth	": 10, "10th": 10, "eleventh": 11, "11th": 11, "twelfth": 12, "12th": 12, "thirteenth": 13,
-            "13th": 13, "fourteenth": 14, "14th": 14, "fifteenth": 15, "15th": 15, "sixteenth": 16, "16th": 16,
-            "seventeenth": 17, "17th": 17, "eighteenth": 18, "18th": 18, "nineteenth": 19, "19th": 19,
-            "twentieth": 20, "twenty": 20, "thirtieth": 30, "30th": 30, "thirty": 30}
+    days = {"first": "1", "1st": "1", "second": "2", "2nd": "2", "third": "3", "fourth": "4", "4th": "4", "fifth": "5",
+            "5th": "5", "sixth": "6", "6th": "6", "seventh": "7", "7th": "7", "eighth": "8", "8th": "8", "ninth": "9",
+            "9th": "9", "tenth": "10", "10th": "10", "eleventh": "11", "11th": "11", "twelfth": "12", "12th": "12",
+            "thirteenth": "13", "13th": "13", "fourteenth": "14", "14th": "14", "fifteenth": "15", "15th": "15",
+            "sixteenth": "16", "16th": "16", "seventeenth": "17", "17th": "17", "eighteenth": "18", "18th": "18",
+            "nineteenth": "19", "19th": "19", "twentieth": "20", "twenty": "20", "20th": "20", "twenty-first": "21",
+            "21tst": "21", "22nd": "22", "twenty-second": "22", "23rd": "23", "twenty-third": "23", "24th": "24",
+            "twenty-fourth": "24", "25th": "25", "twenty-fifth": "25", "26th": "26", "twenty-sixth": "26",
+            "27th": "27", "twenty-seventh": "27", "28th": "28", "twenty-eighth": "28", "twenty-ninth": "29",
+            "29th": "29", "30th": "30", "thirty": "30", "31st": "31", "thirty-first": "31"}
 
     def __init__(self):
         self.stop_words = stopwords.words('english')
 
+    def get_valid_url(self, url_col):
+        """
+        :param url_col: "urls" column or "retweet_urls" or "quote_urls" columns
+        :return: pure valid url or empty string if no valid url was present. format - {"":"return_value"}
+        """
+
+        if url_col != "{}":
+            trans_table = url_col.maketrans("\"", " ")
+            urls = url_col.translate(trans_table)
+            urls = urls.split()
+            if len(urls) == 5:
+                return urls[3]
+        return ""
+
     def parse_hashtag_underscore(self, text_tokens, i):
+        """
+        this function deals with hashtags of the form #stay_at_home
+        :param text_tokens: list of tokens that is changed according to the given rules
+        :param i: the index of the "#" token
+        """
         token = text_tokens[i + 1]
         del text_tokens[i + 1]
         joined_hashtag = '#'
-        from_index = 0
         insertion_index = 0
-        for j in range(len(token)):
-            if token[j] in ['.', '…', ',', '_', '-', '.']:
-                joined_hashtag += token[from_index: j].lower()
-                text_tokens.insert(i + 1 + insertion_index, token[from_index:j].lower())
-                from_index = j + 1
+        num_inserted = 0
+        splited_tokens = token.split("_")
+        for j in range(len(splited_tokens)):
+            if splited_tokens[j] != "":
+                text_tokens.insert(i + 1 + insertion_index, splited_tokens[j].lower())
                 insertion_index += 1
-        if token[from_index:len(token)] != '':
-            joined_hashtag += token[from_index:len(token)].lower()
-            text_tokens.insert(i + 1 + insertion_index, token[from_index:len(token)].lower())
+                num_inserted += 1
+                joined_hashtag += splited_tokens[j]
         text_tokens[i] = joined_hashtag
 
     def parse_hashtag_camel_case(self, text_tokens, i):
+        """
+        this function parses hashtags of the the type #StayAtHome #stayAtHome
+        :param text_tokens: list of tokens that is changed
+        :param i: "#" index
+        """
         token = text_tokens[i + 1]
         del text_tokens[i + 1]
         j = 0
@@ -56,37 +84,42 @@ class Parse:
         text_tokens[i] = joined_hashtag
 
     def parse_hashtag(self, text_tokens, i):
-
+        """
+        this function calls to parse underscore or parse camel case respectively
+        """
         # parsing snake case
         if len(text_tokens) > i + 1 and text_tokens[i + 1].count('_') > 0:
             self.parse_hashtag_underscore(text_tokens, i)
 
         # parsing pascal and camel cases
-        if len(text_tokens) > i + 1:
+        elif len(text_tokens) > i + 1:
             self.parse_hashtag_camel_case(text_tokens, i)
 
     def parse_tagging(self, text_tokens, i):
-
+        """
+        this function appends @ and name that our tokenizer separates
+        :param text_tokens: list of tokens
+        :param i: index of '@'
+        :return:
+        """
         if len(text_tokens) > i + 1:
             text_tokens[i] += text_tokens[i + 1]
             del text_tokens[i + 1]
 
     def parse_url(self, text_tokens, i):
+        """
+        this function parses url according to the rules.
+        :param text_tokens: list of tokens
+        :param i: index of "https"
+        """
         if len(text_tokens) > i + 1:
             del text_tokens[i + 1]  # removing ':'
             link_token = text_tokens[i + 1]
-            del text_tokens[i + 1]  # to remove the previous token
-            from_index = 0
-            insertion_index = 0
-            for j in range(len(link_token)):
-                if link_token[j] == '/' or j == len(link_token) - 1:
-                    if j == len(link_token) - 1:
-                        text_tokens.insert(i + 1 + insertion_index, link_token[from_index:j + 1])
-                        insertion_index += 1
-                    elif link_token[from_index:j] != '':
-                        text_tokens.insert(i + 1 + insertion_index, link_token[from_index:j])
-                        insertion_index += 1
-                    from_index = j + 1
+
+            # splitting the first www.
+            if "www" in link_token.split("."):
+                text_tokens[i + 1] = "www"
+                text_tokens.insert(i + 2, link_token.lstrip("w."))
 
     def is_float(self, number):
 
@@ -151,11 +184,71 @@ class Parse:
                 text_tokens[index] = formatted_token
                 del text_tokens[index + 1]
 
-    def parse_date(self, text_tokens, index):
+    def parse_date_according_to_month(self, text_tokens, index):
+        """
+            parsing date of format '15 of Jun' or '15th of June' etc. to 'MM~DD' format
+        """
 
-        if len(text_tokens) > index + 1:
-            if len(text_tokens[index + 1]) > 2 and text_tokens[index + 1][-2:] == "th":
-                i = 0
+        if len(text_tokens) > index + 1 and text_tokens[index].lower() in self.months:
+            if text_tokens[index + 1] in self.days:  # July 15th
+                text_tokens[index] = self.months.get(text_tokens[index].lower()) + \
+                                     "~" + self.days.get(text_tokens[index + 1])
+                del text_tokens[index + 1]
+            elif text_tokens[index + 1].isnumeric():  # July 15
+                text_tokens[index] = self.months.get(text_tokens[index].lower()) + \
+                                     "~" + str(int(text_tokens[index + 1]))
+                del text_tokens[index + 1]
+        elif index - 1 >= 0:
+            if text_tokens[index - 1] in self.days:  # 15th July
+                text_tokens[index] = self.months.get(text_tokens[index].lower()) + \
+                                     "~" + self.days.get(text_tokens[index - 1])
+                del text_tokens[index - 1]
+            elif text_tokens[index - 1].isnumeric():  # 15 July
+                text_tokens[index] = self.months.get(text_tokens[index].lower()) + \
+                                     "~" + str(int(text_tokens[index - 1]))
+                del text_tokens[index - 1]
+            elif text_tokens[index - 1] == "of" and index - 2 >= 0 \
+                    and text_tokens[index - 2] in self.days:  # 15th of July
+                text_tokens[index] = self.months.get(text_tokens[index].lower()) + \
+                                     "~" + self.days.get(text_tokens[index - 2])
+                del text_tokens[index - 1]
+                del text_tokens[index - 1]
+            elif text_tokens[index - 1] == "of" and text_tokens[index - 2].isnumeric():  # 15 of july
+                text_tokens[index] = self.months.get(text_tokens[index].lower()) + \
+                                     "~" + str(int(text_tokens[index - 2]))
+                del text_tokens[index - 1]
+                del text_tokens[index - 1]
+
+    def parse_date_slash(self, text_tokens, index):
+        """
+            parse date with slash 'MM/DD/YY'
+            to ['MM~DD', 'YY']
+            @:param - index of the 'MM/DD/YY' token
+        """
+
+        splitted_date = text_tokens[index].split("/")
+        if len(splitted_date) == 3 and splitted_date[0].isnumeric() and splitted_date[1].isnumeric() \
+                and splitted_date[2].isnumeric():
+            if int(splitted_date[0]) in range(0, 13) and int(splitted_date[1]) in range(0, 32):
+                text_tokens[index] = str(int(splitted_date[0])) + "~" + str(int(splitted_date[1]))
+                text_tokens.insert(index + 1, splitted_date[2])
+
+    def parse_fraction(self, text_tokens, index):
+        """
+            this function parses fraction according to given rules ['35', '3/4'] - > ['35 3/4']
+        :param text_tokens:
+        :param index:
+        :return:
+        """
+
+        splited_fruction = text_tokens[index].split("/")
+        if index - 1 > 0 and text_tokens[index - 1].isnumeric() and \
+                splited_fruction[0].isnumeric and splited_fruction[1].isnumeric():
+            text_tokens[index - 1] = text_tokens[index - 1] + " " + text_tokens[index]
+            del text_tokens[index]
+            return True
+        else:
+            return False
 
     def parse_entities(self, text_tokens, index, entities):
 
@@ -245,8 +338,15 @@ class Parse:
         while index < len(text_tokens):
 
             token = text_tokens[index]
+
             if token not in self.stop_words and token not in ["RT"] and token not in \
                     punctuation.replace('#', '').replace('@', '').replace('%', '').replace('$', '') and token.isascii():
+
+                token = token.rstrip(".'`/-_").lstrip("~/.-_'")
+                text_tokens[index] = token
+                if token == "":
+                    del text_tokens[index]
+                    continue
 
                 if token == '#':
                     self.parse_hashtag(text_tokens, index)
@@ -261,7 +361,14 @@ class Parse:
 
                 # parse dates
                 if token.lower() in self.months:
-                    self.parse_date(text_tokens, index)
+                    self.parse_date_according_to_month(text_tokens, index)
+
+                if token.count("/") == 2:
+                    self.parse_date_slash(text_tokens, index)
+
+                if token.count("/") == 1:
+                    if self.parse_fraction(text_tokens, index):
+                        continue
 
                 # parse entities
                 # entity is every sequence of tokens starting with a capital letter \
@@ -272,20 +379,40 @@ class Parse:
                 index += 1
             else:
                 if not token.isascii():
-                    i = 0
-                    valid_token = ""
-                    while i < len(token):
-                        if token[i].isascii():
-                            valid_token += token[i]
-                        i += 1
+                    valid_token = ''
+                    for char in token:
+                        if char.isascii():
+                            valid_token += char
+                        else:
+                            emoji = [*findall(char).values()]  # unpack single emoji token and put in list
+                            if len(emoji) > 0 and emoji not in text_tokens:
+                                text_tokens.append(emoji[0])
+                                if len(emoji[0].split()) > 1:
+                                    for emoji_token in emoji[0].split():
+                                        text_tokens.append(emoji_token)
+
                     if valid_token != '':
                         text_tokens[index] = valid_token
                     else:
-                        del text_tokens[index]
+                        del text_tokens[index]  # not ascii symbols that we want to delete
                 else:
-                    del text_tokens[index]
+                    del text_tokens[index]  # RT or punctuation that is in ascii
 
         return text_tokens
+
+    def prep_url(self, url):
+        """
+            remove unnecessary signs from urls
+        """
+        trans_table = url.maketrans("/=?%-_", "      ")
+        return url.translate(trans_table)
+
+    def remove_shortened_urls(self, full_text):
+        try:
+            full_text.index("https")
+            return " ".join(filter(lambda splitted: splitted[:5] != 'https', full_text.split()))
+        except ValueError:
+            return full_text
 
     def parse_doc(self, doc_as_list):
         """
@@ -293,20 +420,36 @@ class Parse:
         :param doc_as_list: list re-presenting the tweet.
         :return: Document object with corresponding fields.
         """
+        url = ""
+        retweet_url = ""
+        quote_url = ""
         tweet_id = doc_as_list[0]
         tweet_date = doc_as_list[1]
         full_text = doc_as_list[2]
-        url = doc_as_list[3]
-        retweet_text = doc_as_list[4]
-        retweet_url = doc_as_list[5]
-        quote_text = doc_as_list[6]
-        quote_url = doc_as_list[7]
+        full_text = self.remove_shortened_urls(full_text)
+        # self.remove_shortened_url(text_tokens, index)
+        if doc_as_list[3] and doc_as_list[3] != "":
+            url = self.get_valid_url(doc_as_list[3])
+            url = self.prep_url(url)
+        retweet_text = doc_as_list[5]
+        if doc_as_list[6] and doc_as_list[6] != "":
+            retweet_url = self.get_valid_url(doc_as_list[6])
+            retweet_url = self.prep_url(retweet_url)
+        quote_text = doc_as_list[8]
+        if quote_text:
+            quote_text = self.remove_shortened_urls(quote_text)
+        else:
+            quote_text = ""
+        if doc_as_list[9] and doc_as_list[9] != "":
+            quote_url = self.get_valid_url(doc_as_list[9])
+            quote_url = self.prep_url(quote_url)
         term_dict = {}
 
         # dictionary for holding possible entities
         entities = dict()
 
-        tokenized_text = self.parse_sentence(full_text, entities)
+        pre_processed_text = full_text + " " + quote_text + " " + url + " " + retweet_url + " " + quote_url
+        tokenized_text = self.parse_sentence(pre_processed_text, entities)
 
         doc_length = len(tokenized_text)  # after text operations.
 

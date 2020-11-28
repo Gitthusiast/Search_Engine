@@ -74,24 +74,6 @@ def run_engine():
     print("Took {} seconds to consolidate all postings".format(toc-tic))
 
 # -----------------
-    # corpus = r.read_corpus()  # read all documents and store them in a set
-    # parsed_corpus = set()
-    #
-    # # Iterate over every document in the corpus
-    # for document_as_list in corpus:
-    #     # parse the document
-    #     parsed_documents = p.parse_doc(document_as_list)
-    #     parsed_corpus.add(parsed_documents)
-    #     number_of_documents += 1
-    #
-    # for document in parsed_corpus:
-    #     # index the document's data
-    #     indexer.add_new_doc(document)
-
-    # print('Finished parsing and indexing. Starting to export files')
-    # utils.save_obj(indexer.inverted_idx, "inverted_idx")
-    # utils.save_obj(indexer.postingDict, "posting")
-# -----------------
 #     batch_index = 0
 #     # Iterate over every document in the file
 #     documents_list = reader.read_file("sample3.parquet")
@@ -112,11 +94,6 @@ def run_engine():
 #     # after indexing all documents, consolidate all partial posting files
 #     indexer.consolidate_postings()
 #     print("Finished creating inverted index")
-
-    # docs = r.read_file("sample3.parquet")
-    # for doc in docs:
-    #     parsed = p.parse_doc(doc)
-
 
 def load_index():
     print('Load inverted index')
