@@ -1,6 +1,5 @@
-from os import walk
 from glob import glob
-from time import perf_counter
+import time
 
 from reader import ReadFile
 from configuration import ConfigClass
@@ -18,27 +17,105 @@ def run_engine():
     number_of_documents = 0
 
     config = ConfigClass()
-    r = ReadFile(corpus_path=config.get__corpusPath())
-    p = Parse()
+    reader = ReadFile(corpus_path=config.get__corpusPath())
+    parser = Parse()
     indexer = Indexer(config)
+    tic = time.perf_counter()
+    # read all parquet data files
+    files = glob(config.get__corpusPath() + "/Data/**/*.parquet", recursive=True)
+    toc = time.perf_counter()
+    print("Took {} seconds to fetch all files".format(toc-tic))
 
-    # files = glob(config.get__corpusPath() + "/Data/**/*.parquet", recursive=True)
-    # for file in files:
-    #     documents_list = r.read_file(file)
-    #     # Iterate over every document in the file
-    #     for document in documents_list:
-    #         # parse the document
-    #         parsed_document = p.parse_doc(document)
-    #         number_of_documents += 1
-    #         # index the document data
-    #         indexer.add_new_doc(parsed_document)
+    # read, parse and index document in batches. Posting files are divided by english alphabet
+    # a batch is defined as all the documents in a single parquet file
+    # each batch is first written as many sub-batches indicated by an index and later merged into one coherent batch
+    batch_index = 0
+    file_index = 0
+    while file_index < len(files):
+
+        # batch two files at a time to reduce disk seek time penalty
+        first_file = files[file_index]
+        second_file = files[file_index + 1]
+        first_documents_list = reader.read_file(first_file)
+        second_documents_list = reader.read_file(second_file)
+        documents_list = first_documents_list + second_documents_list
+
+        file_index += 2
+
+        # Iterate over every document in the file
+
+        tic = time.perf_counter()
+        # parse documents
+        parsed_file = set()
+        for document_as_list in documents_list:
+            parsed_documents = parser.parse_doc(document_as_list)
+            parsed_file.add(parsed_documents)
+            number_of_documents += 1
+        toc = time.perf_counter()
+        print("Took {} seconds to parse batch number #{}".format(toc-tic, batch_index))
+
+        tic = time.perf_counter()
+        # index parsed documents
+        indexer.index_batch(parsed_file, str(batch_index))
+        toc = time.perf_counter()
+        print("Took {} seconds to index batch number #{}".format(toc-tic, batch_index))
+
+    tic = time.perf_counter()
+    # after indexing all non-entity terms in the corpus, index legal entities
+    indexer.index_entities()
+    toc = time.perf_counter()
+    print("Took {} seconds to index all entities in the corpus".format(toc-tic))
+
+    tic = time.perf_counter()
+    # after indexing the whole corpus, consolidate all partial posting files
+    indexer.consolidate_postings()
+    toc = time.perf_counter()
+    print("Finished creating inverted index")
+    print("Took {} seconds to consolidate all postings".format(toc-tic))
+
+# -----------------
+    # corpus = r.read_corpus()  # read all documents and store them in a set
+    # parsed_corpus = set()
+    #
+    # # Iterate over every document in the corpus
+    # for document_as_list in corpus:
+    #     # parse the document
+    #     parsed_documents = p.parse_doc(document_as_list)
+    #     parsed_corpus.add(parsed_documents)
+    #     number_of_documents += 1
+    #
+    # for document in parsed_corpus:
+    #     # index the document's data
+    #     indexer.add_new_doc(document)
+
     # print('Finished parsing and indexing. Starting to export files')
     # utils.save_obj(indexer.inverted_idx, "inverted_idx")
     # utils.save_obj(indexer.postingDict, "posting")
+# -----------------
+#     batch_index = 0
+#     # Iterate over every document in the file
+#     documents_list = reader.read_file("sample3.parquet")
+#
+#     # parse documents
+#     parsed_file = set()
+#     for document_as_list in documents_list:
+#         parsed_documents = parser.parse_doc(document_as_list)
+#         parsed_file.add(parsed_documents)
+#         number_of_documents += 1
+#
+#     # index parsed documents and write to disk current batch's posting file
+#     indexer.index_batch(parsed_file, str(batch_index))
+#
+#     # after indexing all non-entity terms in the corpus, index legal entities
+#     indexer.index_entities()
+#
+#     # after indexing all documents, consolidate all partial posting files
+#     indexer.consolidate_postings()
+#     print("Finished creating inverted index")
 
-    docs = r.read_file("sample3.parquet")
-    for doc in docs:
-        parsed = p.parse_doc(doc)
+    # docs = r.read_file("sample3.parquet")
+    # for doc in docs:
+    #     parsed = p.parse_doc(doc)
 
 
 def load_index():
@@ -56,6 +133,7 @@ def search_and_rank_query(query, inverted_index, k):
     return searcher.ranker.retrieve_top_k(ranked_docs, k)
 
 
+# def main(corpus_path, output_path, stemming, queries, num_doc_to_retrieve):
 def main():
     run_engine()
     query = input("Please enter a query: ")

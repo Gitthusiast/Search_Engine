@@ -1,4 +1,6 @@
 import pickle
+from os import makedirs as os_makedirs
+from os.path import dirname as os_path_dirname
 
 
 def save_obj(obj, name):
@@ -8,6 +10,10 @@ def save_obj(obj, name):
     :param name: name of the pickle file.
     :return: -
     """
+
+    # if any directory on path doesn't exist - create it
+    os_makedirs(os_path_dirname(name), exist_ok=True)
+
     with open(name + '.pkl', 'wb') as f:
         pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
 

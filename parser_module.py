@@ -214,7 +214,7 @@ class Parse:
                     term_dict[formatted_token_upper] = 1
                 elif formatted_token_upper in term_dict:
                     term_dict[formatted_token_upper] += 1
-                else:  # formatted_token_lower in capitals
+                else:  # token appears in lower case in dictionary
                     term_dict[formatted_token_lower] += 1
 
             # If current term is lower case change key to lower case
@@ -225,7 +225,7 @@ class Parse:
                 elif formatted_token_upper in term_dict:  # replace format of token from upper case to lower case
                     term_dict[formatted_token_lower] = term_dict[formatted_token_upper] + 1
                     term_dict.pop(formatted_token_upper, None)  # remove upper case form from the dictionary
-                else:  # formatted_token_lower in capitals
+                else:  # token appears in lower case in dictionary
                     term_dict[formatted_token_lower] += 1
 
             index += 1
@@ -284,8 +284,6 @@ class Parse:
                         del text_tokens[index]
                 else:
                     del text_tokens[index]
-
-        print(text_tokens)
 
         return text_tokens
 
