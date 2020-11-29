@@ -374,7 +374,7 @@ class Parse:
                     and text_tokens[index].isascii():
 
                 # removing unnecessary symbols
-                text_tokens[index] = text_tokens[index].rstrip(".'`/-_").lstrip("~/.-_'")
+                text_tokens[index] = text_tokens[index].rstrip("<>:\"/\\|?*.'`/-_").lstrip("<>:\"/\\|?*~/.-_'")
 
                 if text_tokens[index] == "":
                     del text_tokens[index]
