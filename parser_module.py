@@ -4,8 +4,8 @@ from document import Document
 from string import punctuation
 from demoji import findall
 
-class Parse:
 
+class Parse:
     months = {"jan": "1", "january": "1", "feb": "2", "february": "2", "mar": "3", "march": "3", "apr": "4",
               "april": "4", "may": "5", "jun": "6", "june": "6", "jul": "7", "july": "7", "aug": "8", "august": "8",
               "sep": "9", "september": "9", "oct": "10", "october": "10", "nov": "11", "november": "11", "dec": "12",
@@ -24,7 +24,6 @@ class Parse:
 
     def __init__(self):
         self.stop_words = stopwords.words('english')
-
 
     def get_valid_url(self, url_col):
         """
@@ -223,12 +222,12 @@ class Parse:
         elif index - 1 >= 0:
             if text_tokens[index - 1] in self.days:  # 15th July
                 text_tokens[index] = self.months.get(text_tokens[index].lower()) + \
-                                 "~" + self.days.get(text_tokens[index - 1])
+                                     "~" + self.days.get(text_tokens[index - 1])
                 del text_tokens[index - 1]
                 return 1
             elif text_tokens[index - 1].isnumeric():  # 15 July
                 text_tokens[index] = self.months.get(text_tokens[index].lower()) + \
-                                 "~" + str(int(text_tokens[index - 1]))
+                                     "~" + str(int(text_tokens[index - 1]))
                 del text_tokens[index - 1]
                 return 1
             elif text_tokens[index - 1] == "of" and index - 2 >= 0 \
@@ -240,7 +239,7 @@ class Parse:
                 return 2
 
             elif text_tokens[index - 1] == "of" and text_tokens[index - 2].isnumeric():  # 15 of july
-                text_tokens[index] = self.months.get(text_tokens[index].lower()) +\
+                text_tokens[index] = self.months.get(text_tokens[index].lower()) + \
                                      "~" + str(int(text_tokens[index - 2]))
                 del text_tokens[index - 1]  # delete for
                 del text_tokens[index - 1]  # delete 15
@@ -430,6 +429,7 @@ class Parse:
 
             if index > 0 and text_tokens[index - 1] == '':
                 del text_tokens[index]
+
         return text_tokens
 
     def prep_url(self, url):
