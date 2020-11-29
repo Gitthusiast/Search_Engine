@@ -372,7 +372,8 @@ class Parse:
                     and text_tokens[index] not in punctuation_to_remove\
                     and text_tokens[index].isascii():
 
-                text_tokens[index] = text_tokens[index].rstrip(".'`/-_").lstrip("~/.-_'")
+                # removing unnecessary symbols
+                text_tokens[index] = text_tokens[index].rstrip("<>:\"/\|?*.'`/-_").lstrip("<>:\"/\|?*~/.-_'")
 
                 if text_tokens[index] == "":
                     del text_tokens[index]
@@ -394,6 +395,7 @@ class Parse:
                         text_tokens[index].count("/") == 2:
                     index -= self.parse_date(text_tokens, index)
 
+                # parse fractions
                 elif text_tokens[index].count("/") == 1:
                     if self.parse_fraction(text_tokens, index):
                         continue
