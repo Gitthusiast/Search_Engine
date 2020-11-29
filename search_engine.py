@@ -20,6 +20,7 @@ def run_engine():
     reader = ReadFile(corpus_path=config.get__corpusPath())
     parser = Parse()
     indexer = Indexer(config)
+
     tic = time.perf_counter()
     # read all parquet data files
     files = glob(config.get__corpusPath() + "/Data/**/*.parquet", recursive=True)

@@ -263,17 +263,18 @@ class Parse:
         entity = ""
 
         # find a sequence of terms with capital letters
-        while index < len(text_tokens) - 1 and current_token[0].isupper():
+        while index + 1 < len(text_tokens) and current_token[0].isupper():
             entity += current_token + " "
             index += 1
             current_token = text_tokens[index]
         entity.rstrip(" ")
 
         # add new possible entity to dictionary
-        if entity not in entities:
-            entities[entity] = 1
-        else:
-            entities[entity] += 1
+        if entity != "":
+            if entity not in entities:
+                entities[entity] = 1
+            else:
+                entities[entity] += 1
 
     def parse_capital_letters(self, tokenized_text, term_dict):
 
@@ -337,50 +338,47 @@ class Parse:
         index = 0
         while index < len(text_tokens):
 
-            token = text_tokens[index]
+            if text_tokens[index] not in self.stop_words and text_tokens[index] not in ["RT"] and text_tokens[index] not in \
+                    punctuation.replace('#', '').replace('@', '').replace('%', '').replace('$', '') and text_tokens[index].isascii():
 
-            if token not in self.stop_words and token not in ["RT"] and token not in \
-                    punctuation.replace('#', '').replace('@', '').replace('%', '').replace('$', '') and token.isascii():
-
-                token = token.rstrip(".'`/-_").lstrip("~/.-_'")
-                text_tokens[index] = token
-                if token == "":
+                text_tokens[index] = text_tokens[index].rstrip(".'`/-_").lstrip("~/.-_'")
+                if text_tokens[index] == "":
                     del text_tokens[index]
                     continue
 
-                if token == '#':
+                if text_tokens[index] == '#':
                     self.parse_hashtag(text_tokens, index)
-                if token == '@':
+                if text_tokens[index] == '@':
                     self.parse_tagging(text_tokens, index)
-                if token == 'https' or token == 'http':
+                if text_tokens[index] == 'https' or text_tokens[index] == 'http':
                     self.parse_url(text_tokens, index)
 
                 # parse numeric values
-                if self.is_float(token):
+                if self.is_float(text_tokens[index]):
                     self.parse_numeric_values(text_tokens, index)
 
                 # parse dates
-                if token.lower() in self.months:
+                if text_tokens[index].lower() in self.months:
                     self.parse_date_according_to_month(text_tokens, index)
 
-                if token.count("/") == 2:
+                if text_tokens[index].count("/") == 2:
                     self.parse_date_slash(text_tokens, index)
 
-                if token.count("/") == 1:
+                if text_tokens[index].count("/") == 1:
                     if self.parse_fraction(text_tokens, index):
                         continue
 
                 # parse entities
                 # entity is every sequence of tokens starting with a capital letter \
                 # and appearing at least twice in the entire corpus
-                if index < len(text_tokens) - 1 and token[0].isupper() and text_tokens[index + 1][0].isupper():
+                if index + 1 < len(text_tokens) and text_tokens[index][0].isupper() and text_tokens[index + 1][0].isupper():
                     self.parse_entities(text_tokens, index, entities)
 
                 index += 1
             else:
-                if not token.isascii():
+                if not text_tokens[index].isascii():
                     valid_token = ''
-                    for char in token:
+                    for char in text_tokens[index]:
                         if char.isascii():
                             valid_token += char
                         else:

@@ -37,10 +37,11 @@ class Indexer:
 
         for entity in document_entities.keys():
 
-            if entity not in self.entity_dict:
-                self.entity_dict[entity] = 1
-            else:
-                self.entity_dict[entity] += 1
+            if entity != "":
+                if entity not in self.entity_dict:
+                    self.entity_dict[entity] = 1
+                else:
+                    self.entity_dict[entity] += 1
 
     def index_uniform_terms(self, document_dictionary):
 
