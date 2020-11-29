@@ -114,13 +114,14 @@ class Parse:
         :param i: index of "https"
         """
         if len(text_tokens) > i+1:
-            del text_tokens[i+1]  # removing ':'
-            link_token = text_tokens[i+1]
+            if text_tokens[i+1] == ':':
+                del text_tokens[i+1]  # removing ':'
+                link_token = text_tokens[i+1]
 
-            # splitting the first www.
-            if "www" in link_token.split("."):
-                text_tokens[i + 1] = "www"
-                text_tokens.insert(i + 2, link_token.lstrip("w."))
+                # splitting the first www.
+                if "www" in link_token.split("."):
+                    text_tokens[i + 1] = "www"
+                    text_tokens.insert(i + 2, link_token.lstrip("w."))
 
     def is_float(self, number):
 
@@ -185,9 +186,29 @@ class Parse:
                 text_tokens[index] = formatted_token
                 del text_tokens[index + 1]
 
+    def parse_date(self, text_tokens, index):
+        """
+        this function calls the appropriate function to parse a date.
+        :param text_tokens: list of tokens
+        :param index: the index of the month or the index of the 'MM/DD/YY' token
+        :return: - reduction of the index as a result of deletion of previous tokens
+                   in some cases such as '15th of July' we want to delete '15' and 'of' and insert '7~15'
+                   in this cases we should bring the index back
+        """
+
+        if text_tokens[index].lower() in self.months:
+            return self.parse_date_according_to_month(text_tokens, index)
+
+        if text_tokens[index].count("/") == 2:
+            self.parse_date_slash(text_tokens, index)
+            return 0
+
     def parse_date_according_to_month(self, text_tokens, index):
         """
             parsing date of format '15 of Jun' or '15th of June' etc. to 'MM~DD' format
+            :return - reduction of the index as a result of deletion of previous tokens
+                      in some cases such as '15th of July' we want to delete '15' and 'of' and insert '7~15'
+                      in this cases we should bring the index back
         """
 
         if len(text_tokens) > index + 1 and text_tokens[index].lower() in self.months:
@@ -204,21 +225,27 @@ class Parse:
                 text_tokens[index] = self.months.get(text_tokens[index].lower()) + \
                                  "~" + self.days.get(text_tokens[index - 1])
                 del text_tokens[index - 1]
+                return 1
             elif text_tokens[index - 1].isnumeric():  # 15 July
                 text_tokens[index] = self.months.get(text_tokens[index].lower()) + \
                                  "~" + str(int(text_tokens[index - 1]))
                 del text_tokens[index - 1]
+                return 1
             elif text_tokens[index - 1] == "of" and index - 2 >= 0 \
                     and text_tokens[index - 2] in self.days:  # 15th of July
                 text_tokens[index] = self.months.get(text_tokens[index].lower()) + \
                                      "~" + self.days.get(text_tokens[index - 2])
-                del text_tokens[index - 1]
-                del text_tokens[index - 1]
+                del text_tokens[index - 1]  # delete for
+                del text_tokens[index - 1]  # delete 15th
+                return 2
+
             elif text_tokens[index - 1] == "of" and text_tokens[index - 2].isnumeric():  # 15 of july
                 text_tokens[index] = self.months.get(text_tokens[index].lower()) +\
                                      "~" + str(int(text_tokens[index - 2]))
-                del text_tokens[index - 1]
-                del text_tokens[index - 1]
+                del text_tokens[index - 1]  # delete for
+                del text_tokens[index - 1]  # delete 15
+                return 2
+        return 0
 
     def parse_date_slash(self, text_tokens, index):
         """
@@ -291,36 +318,38 @@ class Parse:
 
             token = tokenized_text[index]
 
-            # save token as upper case
-            # save token as lower and upper case
-            formatted_token_lower = token.lower()
-            formatted_token_upper = token.upper()
+            if token != '':
 
-            # Add token to term dictionary
-            # In the dictionary keep the term_frequency
-            # term_frequency - how many times the term appeared in the document
-            # key indicates if term is capital or lower case
+                # save token as upper case
+                # save token as lower and upper case
+                formatted_token_lower = token.lower()
+                formatted_token_upper = token.upper()
 
-            # Check if first letter is a capital letter
-            if token[0].isupper():
-                # check in which form the token appears in dictionary and update it accordingly
-                if formatted_token_upper not in term_dict and formatted_token_lower not in term_dict:
-                    term_dict[formatted_token_upper] = 1
-                elif formatted_token_upper in term_dict:
-                    term_dict[formatted_token_upper] += 1
-                else:  # formatted_token_lower in capitals
-                    term_dict[formatted_token_lower] += 1
+                # Add token to term dictionary
+                # In the dictionary keep the term_frequency
+                # term_frequency - how many times the term appeared in the document
+                # key indicates if term is capital or lower case
 
-            # If current term is lower case change key to lower case
-            else:
-                # check in which form the token appears in dictionary and update it accordingly
-                if formatted_token_upper not in term_dict and formatted_token_lower not in term_dict:
-                    term_dict[formatted_token_lower] = 1
-                elif formatted_token_upper in term_dict:  # replace format of token from upper case to lower case
-                    term_dict[formatted_token_lower] = term_dict[formatted_token_upper] + 1
-                    term_dict.pop(formatted_token_upper, None)  # remove upper case form from the dictionary
-                else:  # formatted_token_lower in capitals
-                    term_dict[formatted_token_lower] += 1
+                # Check if first letter is a capital letter
+                if token[0].isupper():
+                    # check in which form the token appears in dictionary and update it accordingly
+                    if formatted_token_upper not in term_dict and formatted_token_lower not in term_dict:
+                        term_dict[formatted_token_upper] = 1
+                    elif formatted_token_upper in term_dict:
+                        term_dict[formatted_token_upper] += 1
+                    else:  # formatted_token_lower in capitals
+                        term_dict[formatted_token_lower] += 1
+
+                # If current term is lower case change key to lower case
+                else:
+                    # check in which form the token appears in dictionary and update it accordingly
+                    if formatted_token_upper not in term_dict and formatted_token_lower not in term_dict:
+                        term_dict[formatted_token_lower] = 1
+                    elif formatted_token_upper in term_dict:  # replace format of token from upper case to lower case
+                        term_dict[formatted_token_lower] = term_dict[formatted_token_upper] + 1
+                        term_dict.pop(formatted_token_upper, None)  # remove upper case form from the dictionary
+                    else:  # formatted_token_lower in capitals
+                        term_dict[formatted_token_lower] += 1
 
             index += 1
 
@@ -334,54 +363,54 @@ class Parse:
         """
 
         text_tokens = word_tokenize(text)
+        punctuation_to_remove = punctuation.replace('#', '').replace('@', '').replace('%', '').replace('$', '')
 
         index = 0
         while index < len(text_tokens):
 
-            token = text_tokens[index]
+            if text_tokens[index] not in self.stop_words\
+                    and text_tokens[index] not in ["RT"]\
+                    and text_tokens[index] not in punctuation_to_remove\
+                    and text_tokens[index].isascii():
 
-            if token not in self.stop_words and token not in ["RT"] and token not in \
-                    punctuation.replace('#', '').replace('@', '').replace('%', '').replace('$', '') and token.isascii():
+                text_tokens[index] = text_tokens[index].rstrip(".'`/-_").lstrip("~/.-_'")
 
-                token = token.rstrip(".'`/-_").lstrip("~/.-_'")
-                text_tokens[index] = token
-                if token == "":
+                if text_tokens[index] == "":
                     del text_tokens[index]
                     continue
 
-                if token == '#':
+                if text_tokens[index] == '#':
                     self.parse_hashtag(text_tokens, index)
-                if token == '@':
+                elif text_tokens[index] == '@':
                     self.parse_tagging(text_tokens, index)
-                if token == 'https' or token == 'http':
+                elif text_tokens[index] == 'https' or text_tokens[index] == 'http':
                     self.parse_url(text_tokens, index)
 
                 # parse numeric values
-                if self.is_float(token):
+                elif self.is_float(text_tokens[index]):
                     self.parse_numeric_values(text_tokens, index)
 
                 # parse dates
-                if token.lower() in self.months:
-                    self.parse_date_according_to_month(text_tokens, index)
+                elif text_tokens[index].lower() in self.months or \
+                        text_tokens[index].count("/") == 2:
+                    index -= self.parse_date(text_tokens, index)
 
-                if token.count("/") == 2:
-                    self.parse_date_slash(text_tokens, index)
-
-                if token.count("/") == 1:
+                elif text_tokens[index].count("/") == 1:
                     if self.parse_fraction(text_tokens, index):
                         continue
 
                 # parse entities
                 # entity is every sequence of tokens starting with a capital letter \
                 # and appearing at least twice in the entire corpus
-                if index < len(text_tokens) - 1 and token[0].isupper() and text_tokens[index + 1][0].isupper():
+                if index + 1 < len(text_tokens) and text_tokens[index].isupper() \
+                        and text_tokens[index + 1][0].isupper():
                     self.parse_entities(text_tokens, index, entities)
 
                 index += 1
             else:
-                if not token.isascii():
+                if not text_tokens[index].isascii():
                     valid_token = ''
-                    for char in token:
+                    for char in text_tokens[index]:
                         if char.isascii():
                             valid_token += char
                         else:
@@ -398,7 +427,9 @@ class Parse:
                         del text_tokens[index]  # not ascii symbols that we want to delete
                 else:
                     del text_tokens[index]  # RT or punctuation that is in ascii
-        print(text_tokens)
+
+            if index > 0 and text_tokens[index - 1] == '':
+                del text_tokens[index]
         return text_tokens
 
     def prep_url(self, url):
