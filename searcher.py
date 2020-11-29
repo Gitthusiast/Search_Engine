@@ -21,8 +21,9 @@ class Searcher:
         """
         posting = utils.load_obj("posting")
         relevant_docs = {}
-        for term in query:
-            try: # an example of checks that you have to do
+        parsed_query = self.parser.parse_sentence(query)
+        for term in parsed_query:
+            try:  # an example of checks that you have to do
                 posting_doc = posting[term]
                 for doc_tuple in posting_doc:
                     doc = doc_tuple[0]
