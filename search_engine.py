@@ -21,6 +21,7 @@ def run_engine():
     parser = Parse()
     indexer = Indexer(config)
 
+    total_tic = time.perf_counter()
     tic = time.perf_counter()
     # read all parquet data files
     files = glob(config.get__corpusPath() + "/Data/**/*.parquet", recursive=True)
@@ -36,10 +37,18 @@ def run_engine():
 
         # batch two files at a time to reduce disk seek time penalty
         first_file = files[file_index]
-        second_file = files[file_index + 1]
         first_documents_list = reader.read_file(first_file)
-        second_documents_list = reader.read_file(second_file)
-        documents_list = first_documents_list + second_documents_list
+
+        print("Currently in batch #{} are files:".format(batch_index))
+        print(first_file)
+
+        if file_index + 1 < len(files):
+            second_file = files[file_index + 1]
+            second_documents_list = reader.read_file(second_file)
+            documents_list = first_documents_list + second_documents_list
+            print(second_file)
+        else:  # if only one batch left for the last batch
+            documents_list = first_documents_list
 
         file_index += 2
 
@@ -61,6 +70,8 @@ def run_engine():
         toc = time.perf_counter()
         print("Took {} seconds to index batch number #{}".format(toc-tic, batch_index))
 
+        batch_index += 1
+
     tic = time.perf_counter()
     # after indexing all non-entity terms in the corpus, index legal entities
     indexer.index_entities()
@@ -73,6 +84,8 @@ def run_engine():
     toc = time.perf_counter()
     print("Finished creating inverted index")
     print("Took {} seconds to consolidate all postings".format(toc-tic))
+    total_toc = time.perf_counter()
+    print("In total, took {} seconds to parse all corpus and build inverted index".format(total_toc-total_tic))
 
 # -----------------
 #     batch_index = 0
