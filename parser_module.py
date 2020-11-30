@@ -3,6 +3,7 @@ from nltk.tokenize import word_tokenize
 from document import Document
 from string import punctuation
 from demoji import findall
+import stemmer
 
 
 class Parse:
@@ -24,6 +25,7 @@ class Parse:
 
     def __init__(self):
         self.stop_words = stopwords.words('english')
+        self.token_stemmer = stemmer.Stemmer()
 
     def get_valid_url(self, url_col):
         """
@@ -353,12 +355,12 @@ class Parse:
 
             index += 1
 
-    def parse_sentence(self, text, entities=None):
-
+    def parse_sentence(self, text, entities=None, stemming=False):
         """
         This function tokenize, remove stop words and apply lower case for every word within the text
         :param text: string - text to be parsed
         :param entities: dictionary - record possible entities in currently parsed document
+        :param stemming: boolean variable True - with stemming, False - without stemming
         :return: list of parsed tokens
         """
 
@@ -408,23 +410,39 @@ class Parse:
                         and text_tokens[index + 1][0].isupper():
                     self.parse_entities(text_tokens, index, entities)
 
+                # apply stemmer if stemming is True
+                if stemming and len(text_tokens[index]) > 0 and text_tokens[index][0] not in "@#":
+                    after_stemming = self.token_stemmer.stem_term(text_tokens[index])
+                    if after_stemming != '':
+                        text_tokens[index] = after_stemming
+
                 index += 1
             else:
                 if not text_tokens[index].isascii():
+                    # token is not ascii
                     valid_token = ''
                     for char in text_tokens[index]:
                         if char.isascii():
-                            valid_token += char
+                            valid_token += char  # separate valid token from the ascii symbol appended to him
                         else:
+                            # parsing emoji
                             emoji = [*findall(char).values()]  # unpack single emoji token and put in list
                             if len(emoji) > 0 and emoji not in text_tokens:
                                 text_tokens.append(emoji[0])
                                 if len(emoji[0].split()) > 1:
+                                    # add to text tokens emojis such as: 'smiling face', 'smiling', 'face'
                                     for emoji_token in emoji[0].split():
                                         text_tokens.append(emoji_token)
 
-                    if valid_token != '':
+                    if valid_token != '':  # append the valid token
                         text_tokens[index] = valid_token
+
+                        # apply stemmer if stemming is True
+                        if stemming and valid_token[0] not in "@#":
+                            after_stemming = self.token_stemmer.stem_term(valid_token)
+                            if after_stemming != '':
+                                text_tokens[index] = after_stemming
+
                     else:
                         del text_tokens[index]  # not ascii symbols that we want to delete
                 else:
@@ -449,10 +467,11 @@ class Parse:
         except ValueError:
             return full_text
 
-    def parse_doc(self, doc_as_list):
+    def parse_doc(self, doc_as_list, stemming=False):
         """
         This function takes a tweet document as list and break it into different fields
         :param doc_as_list: list re-presenting the tweet.
+        :param stemming: boolean variable True - with stemming, False - without stemming
         :return: Document object with corresponding fields.
         """
         url = ""
@@ -484,7 +503,7 @@ class Parse:
         entities = dict()
 
         pre_processed_text = full_text + " " + quote_text + " " + url + " " + retweet_url + " " + quote_url
-        tokenized_text = self.parse_sentence(pre_processed_text, entities)
+        tokenized_text = self.parse_sentence(pre_processed_text, entities, stemming)
 
         doc_length = len(tokenized_text)  # after text operations.
 
@@ -492,6 +511,11 @@ class Parse:
         # parsing will build the term dictionary in a uniform upper/lower form and calculate the term frequency
         self.parse_capital_letters(tokenized_text, term_dict)
 
+        max_tf = 0
+        for tf in term_dict.values():
+            if tf > max_tf:
+                max_tf = tf
+
         document = Document(tweet_id, tweet_date, full_text, url, retweet_text, retweet_url, quote_text,
-                            quote_url, term_dict, doc_length, entities)
+                            quote_url, term_dict, doc_length, entities, max_tf)
         return document

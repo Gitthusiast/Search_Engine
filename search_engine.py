@@ -9,7 +9,7 @@ from searcher import Searcher
 import utils
 
 
-def run_engine():
+def run_engine(stemming=False):
     """
 
     :return:
@@ -58,7 +58,7 @@ def run_engine():
         # parse documents
         parsed_file = set()
         for document_as_list in documents_list:
-            parsed_documents = parser.parse_doc(document_as_list)
+            parsed_documents = parser.parse_doc(document_as_list, stemming)
             parsed_file.add(parsed_documents)
             number_of_documents += 1
         toc = time.perf_counter()
@@ -86,6 +86,9 @@ def run_engine():
     print("Took {} seconds to consolidate all postings".format(toc-tic))
     total_toc = time.perf_counter()
     print("In total, took {} seconds to parse all corpus and build inverted index".format(total_toc-total_tic))
+
+    # for debug save index dictionary
+    utils.save_obj(indexer.inverted_idx, "inverted_idx")
 
 # -----------------
 #     batch_index = 0
@@ -125,8 +128,8 @@ def search_and_rank_query(query, inverted_index, k):
 
 
 # def main(corpus_path, output_path, stemming, queries, num_doc_to_retrieve):
-def main():
-    run_engine()
+def main(corpus_path, output_path, stemming, queries, num_doc_to_retrieve):
+    run_engine(stemming)
     query = input("Please enter a query: ")
     k = int(input("Please enter number of docs to retrieve: "))
     inverted_index = load_index()

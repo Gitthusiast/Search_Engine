@@ -1,7 +1,7 @@
 from parser_module import Parse
 from ranker import Ranker
 import utils
-
+from spellchecker import SpellChecker
 
 class Searcher:
 
@@ -19,9 +19,21 @@ class Searcher:
         :param query: query
         :return: dictionary of relevant documents.
         """
+
+        spell = SpellChecker()
+
         posting = utils.load_obj("posting")
         relevant_docs = {}
         parsed_query = self.parser.parse_sentence(query)
+
+        spell = SpellChecker()
+        i = 0
+        while i < len(parsed_query):
+            corrected_token = spell.correction(parsed_query[i])
+            if corrected_token in self.inverted_index:
+                parsed_query.insert(i + 1, corrected_token)
+            i += 1
+
         for term in parsed_query:
             try:  # an example of checks that you have to do
                 posting_doc = posting[term]
@@ -33,4 +45,5 @@ class Searcher:
                         relevant_docs[doc] += 1
             except:
                 print('term {} not found in posting'.format(term))
+
         return relevant_docs
