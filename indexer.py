@@ -1,23 +1,32 @@
 import utils
 from os import remove as os_remove
-from os import getcwd as os_getcwd
 from os.path import exists as os_path_exists
-from os import rename as os_rename
+
+# Constants for accessing data lists
+IDF_INDEX = 0
+POSTING_POINTER_INDEX = 1
+TOTAL_FREQUENCY_INDEX = 2
+
+TOTAL_FREQUENCY_ENTITY = 1
 
 
 class Indexer:
 
-    def __init__(self, config):
-        self.inverted_idx = {}  # dictionary format {term: [document_frequency, posting_pointer] }
+    def __init__(self, output_path):
+
+        # output path for saving the inverted index in the disk
+        self.output_path = output_path
+
+        self.inverted_idx = {}  # dictionary format {term: [document_frequency, posting_pointer, total_frequency] }
 
         # dictionary holds posting files for current ongoing batch
-        # dictionary format {posting_batch_pointer : { term: [[docId, term_frequency]] } }
+        # dictionary format {posting_batch_pointer :
+        #              { term: [[docId, term_frequency, max_term_frequency, unique_term_number,
+        #              document_length, doc_date]] } }
         self.postingDict = dict()
 
-        self.config = config
-
         # entity_dict is a partial inverted_idx dictionary containing only entities
-        # entity_dict is of the format {entity: document_frequency}
+        # entity_dict is of the format {entity: document_frequency, total_frequency}
         self.entity_dict = dict()
 
         # a dictionary of all currently existing postings (partial or merged)
@@ -35,13 +44,14 @@ class Indexer:
         :param document_entities: dictionary of all entities in the document
         """
 
-        for entity in document_entities.keys():
+        for entity, frequency in document_entities.items():
 
             if entity != "":
                 if entity not in self.entity_dict:
-                    self.entity_dict[entity] = 1
+                    self.entity_dict[entity] = [1, frequency]
                 else:
-                    self.entity_dict[entity] += 1
+                    self.entity_dict[entity][IDF_INDEX] += 1
+                    self.entity_dict[entity][TOTAL_FREQUENCY_ENTITY] += frequency
 
     def index_uniform_terms(self, document_dictionary):
 
@@ -53,7 +63,7 @@ class Indexer:
         :param document_dictionary - per document uniform term dictionary
         """
 
-        for term in document_dictionary.keys():
+        for term, frequency in document_dictionary.items():
 
             # Add term to inverted_idx dictionary
             # In the dictionary keep the term_frequency
@@ -71,28 +81,35 @@ class Indexer:
                 term_lower_form = term.lower()
                 # check in which form the token appears in dictionary and update it accordingly
                 if term not in self.inverted_idx and term_lower_form not in self.inverted_idx:
-                    self.inverted_idx[term] = [1, posting_prefix]
+                    self.inverted_idx[term] = [1, posting_prefix, frequency]
                 elif term in self.inverted_idx:
-                    self.inverted_idx[term][0] += 1
+                    self.inverted_idx[term][IDF_INDEX] += 1
+                    self.inverted_idx[term][TOTAL_FREQUENCY_INDEX] += frequency
                 else:  # term appears in lower case in dictionary
-                    self.inverted_idx[term_lower_form][0] += 1
+                    self.inverted_idx[term_lower_form][IDF_INDEX] += 1
+                    self.inverted_idx[term_lower_form][TOTAL_FREQUENCY_INDEX] += frequency
 
-            # If current term is lower case change key to lower case
+            # If current term is lower case, number or punctuation change key to lower case
             else:
 
                 term_upper_form = term.upper()
                 # check in which form the token appears in dictionary and update it accordingly
                 if term_upper_form not in self.inverted_idx and term not in self.inverted_idx:
-                    self.inverted_idx[term] = [1, posting_prefix]
+                    self.inverted_idx[term] = [1, posting_prefix, frequency]
                 elif term_upper_form in self.inverted_idx:  # replace term in dictionary from upper case to lower case
-                    self.inverted_idx[term] = [self.inverted_idx[term_upper_form][0] + 1,
-                                               self.inverted_idx[term_upper_form][1]]
                     if term.islower() or term.isupper():  # term is neither a number nor a punctuation
+                        self.inverted_idx[term] = [self.inverted_idx[term_upper_form][IDF_INDEX] + 1,
+                                                   self.inverted_idx[term_upper_form][POSTING_POINTER_INDEX],
+                                                   self.inverted_idx[term_upper_form][TOTAL_FREQUENCY_INDEX]]
                         self.inverted_idx.pop(term_upper_form, None)  # remove upper case form from the dictionary
+                    else:  # term is number or punctuation
+                        self.inverted_idx[term][IDF_INDEX] += 1
+                        self.inverted_idx[term][TOTAL_FREQUENCY_INDEX] += frequency
                 else:  # term appears in lower case in dictionary
-                    self.inverted_idx[term][0] += 1
+                    self.inverted_idx[term][TOTAL_FREQUENCY_INDEX] += frequency
 
-    def add_document_to_posting_batch(self, doc_id, document_dictionary, document_entities, batch_index):
+    def add_document_to_posting_batch(self, doc_id, max_tf, unique_terms_number, document_length, document_date,
+                                      document_dictionary, document_entities, batch_index):
 
         """
         Creates an initial batch posting file
@@ -100,12 +117,16 @@ class Indexer:
         Integrity of these rules should be enforced by merging of corresponding batch posting files
         Posting dictionary format is {posting_batch_pointer : { term: [[docId, term_frequency]] } }
         :param doc_id: current document id to be added
+        :param max_tf: max term frequency of a term in the document
+        :param unique_terms_number: number of unique terms in the document
+        :param document_length: number of terms in the document with repetition
+        :param document_date: str - document date
         :param document_dictionary: document's uniform term dictionary
         :param document_entities: document's entities dictionary
         :param batch_index: current batch index to create partial posting file
         """
 
-        # unpack dict_items object into a list before applying operand +
+        # unpack dict_items object into a list before applying operator +
         for term, frequency in [*document_dictionary.items()] + [*document_entities.items()]:
 
             # Any partial posting file gets a name (pointer) to identify it
@@ -116,7 +137,8 @@ class Indexer:
 
             if posting_batch_pointer not in self.postingDict:
                 self.postingDict[posting_batch_pointer] = dict()
-                self.postingDict[posting_batch_pointer][term] = [[doc_id, frequency]]
+                self.postingDict[posting_batch_pointer][term] = \
+                    [[doc_id, frequency, max_tf, unique_terms_number, document_length, document_date]]
 
                 # update pointer in posting files pointer dictionary
                 if posting_prefix not in self.posting_pointers:
@@ -127,9 +149,11 @@ class Indexer:
             else:
                 partial_posting = self.postingDict[posting_batch_pointer]
                 if term not in partial_posting:
-                    partial_posting[term] = [[doc_id, frequency]]
+                    partial_posting[term] = [[doc_id, frequency, max_tf, unique_terms_number,
+                                              document_length, document_date]]
                 else:
-                    partial_posting[term].append([doc_id, frequency])
+                    partial_posting[term].append([doc_id, frequency, max_tf, unique_terms_number,
+                                                  document_length, document_date])
 
     def index_batch(self, batch, batch_index):
 
@@ -152,10 +176,15 @@ class Indexer:
         # create posting file for current batch
         for document in batch:
             doc_id = document.tweet_id
+            max_tf = document.max_tf
+            unique_terms_number = document.unique_terms_number
+            document_length = document.doc_length
+            document_date = document.date
             document_dictionary = document.term_doc_dictionary
             document_entities_dictionary = document.entities
 
-            self.add_document_to_posting_batch(doc_id, document_dictionary, document_entities_dictionary, batch_index)
+            self.add_document_to_posting_batch(doc_id, max_tf, unique_terms_number, document_length, document_date,
+                                               document_dictionary, document_entities_dictionary, batch_index)
 
         print('Finished parsing and indexing batch #{}. Starting to export files'.format(batch_index))
         self.write_batch_postings()
@@ -169,7 +198,7 @@ class Indexer:
         Index all legal entities recorded in the indexer's entity dictionary after processing all the corpus
         """
 
-        for entity, document_frequency in self.entity_dict.items():
+        for entity, document_frequency, total_frequency in self.entity_dict.items():
 
             # Any posting file gets a name (pointer) to identify it
             # Pointer of a fully merged legal posting file is a string posting_pointer that equals to posting_prefix
@@ -178,7 +207,7 @@ class Indexer:
 
             # check if possible entity is a legal entity and and index it
             if entity not in self.inverted_idx and document_frequency >= 2:
-                self.inverted_idx[entity] = [document_frequency, posting_prefix]
+                self.inverted_idx[entity] = [document_frequency, posting_prefix, total_frequency]
 
     def write_batch_postings(self):
 
@@ -187,7 +216,7 @@ class Indexer:
         """
 
         for posting_batch_pointer, posting_batch in self.postingDict.items():
-            utils.save_obj(posting_batch, os_getcwd() + "/postings/{}".format(posting_batch_pointer))
+            utils.save_obj(posting_batch, self.output_path + "{}".format(posting_batch_pointer))
 
     def read_batch_postings(self, posting_prefix):
 
@@ -205,7 +234,7 @@ class Indexer:
         posting_names = []
         posting_files = []
         for posting_pointer in self.posting_pointers[posting_prefix]:
-            posting_file = utils.load_obj(os_getcwd() + "/postings/{}".format(posting_pointer))
+            posting_file = utils.load_obj(self.output_path + "{}".format(posting_pointer))
             posting_files.append(posting_file)
             posting_names.append(posting_pointer)
 
@@ -309,8 +338,8 @@ class Indexer:
 
         # delete already merged posting files from disk
         for posting in posting_names:
-            if os_path_exists(os_getcwd() + "/postings/{}".format(posting) + ".pkl"):
-                os_remove(os_getcwd() + "/postings/{}".format(posting) + ".pkl")
+            if os_path_exists(self.output_path + "{}".format(posting) + ".pkl"):
+                os_remove(self.output_path + "{}".format(posting) + ".pkl")
 
         return merged_postings
 
@@ -360,7 +389,7 @@ class Indexer:
                     posting_files = self.merge_posting_pairs(posting_files, posting_names)
 
             # write to disk merged posting file
-            utils.save_obj(posting_files[0], os_getcwd() + "/postings/{}".format(posting_prefix))
+            utils.save_obj(posting_files[0], self.output_path + "{}".format(posting_prefix))
 
             # update posting files pointer dictionary
             self.posting_pointers[posting_prefix] = [posting_prefix]
