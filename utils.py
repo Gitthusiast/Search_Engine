@@ -28,12 +28,12 @@ def load_obj(name):
         return pickle.load(f)
 
 
-def load_inverted_index(output_path):
+def load_inverted_index(output_path=None):
     """
     This function loads the inverted index dictionary from disk
     :param output_path: path to inverted_idx.pkl
     :return: returns contents of inverted_idx file
     """
 
-    with open(output_path + ".pkl", "rb") as f:
+    with open(output_path + "\\inverted_idx.pkl", "rb") as f:
         return pickle.load(f)

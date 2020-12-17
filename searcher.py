@@ -1,13 +1,12 @@
 from parser_module import Parse
 from ranker import Ranker
-from configuration import ConfigClass
 import utils
 from spellchecker import SpellChecker
 from math import log
 
 # Constants for accessing data lists
-IDF_INDEX = 0
-POSTING_POINTER_INDEX = 2
+DF_INDEX = 0
+POSTING_POINTER_INDEX = 1
 
 DOCUMENT_ID_INDEX = 0
 FREQUENCY_INDEX = 1
@@ -21,16 +20,16 @@ DELTA = 1
 
 class Searcher:
 
-    def __init__(self, inverted_index, corpus_size, average_length):
+    def __init__(self, inverted_index, corpus_size, average_length, output_path):
         """
         :param inverted_index: dictionary of inverted index
         """
         self.parser = Parse()
         self.ranker = Ranker()
-        self.config = ConfigClass()
         self.inverted_index = inverted_index
         self.corpus_size = corpus_size
         self.average_length = average_length
+        self.output_path = output_path
 
     def calculate_doc_scores(self, term, relevant_docs, posting_pointer, posting_file):
 
@@ -47,9 +46,9 @@ class Searcher:
         if posting_pointer is None or term[0].lower() != posting_pointer or posting_file is None:
             posting_pointer = self.inverted_index[term][POSTING_POINTER_INDEX]
             posting_file = utils.load_obj(
-                self.config.corpusPath + self.config.savedFileMainFolder + posting_pointer)
+                self.output_path + str(posting_pointer))
 
-        inverted_document_frequency = log(self.corpus_size / self.inverted_index[term][IDF_INDEX])
+        inverted_document_frequency = log(self.corpus_size / self.inverted_index[term][DF_INDEX])
 
         documents = posting_file[term]
         for document in documents:
@@ -86,7 +85,7 @@ class Searcher:
         # perform spell correction
         spell_checker = SpellChecker()
         corrected_terms = []
-        misspelled_terms = spell_checker.unknown(*term_dict.keys())
+        misspelled_terms = spell_checker.unknown([*term_dict.keys()])
         for term in misspelled_terms:
 
             # only correct terms that aren't in the inverted dictionary

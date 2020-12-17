@@ -3,7 +3,7 @@ from os import remove as os_remove
 from os.path import exists as os_path_exists
 
 # Constants for accessing data lists
-IDF_INDEX = 0
+DF_INDEX = 0
 POSTING_POINTER_INDEX = 1
 TOTAL_FREQUENCY_INDEX = 2
 
@@ -50,7 +50,7 @@ class Indexer:
                 if entity not in self.entity_dict:
                     self.entity_dict[entity] = [1, frequency]
                 else:
-                    self.entity_dict[entity][IDF_INDEX] += 1
+                    self.entity_dict[entity][DF_INDEX] += 1
                     self.entity_dict[entity][TOTAL_FREQUENCY_ENTITY] += frequency
 
     def index_uniform_terms(self, document_dictionary):
@@ -83,10 +83,10 @@ class Indexer:
                 if term not in self.inverted_idx and term_lower_form not in self.inverted_idx:
                     self.inverted_idx[term] = [1, posting_prefix, frequency]
                 elif term in self.inverted_idx:
-                    self.inverted_idx[term][IDF_INDEX] += 1
+                    self.inverted_idx[term][DF_INDEX] += 1
                     self.inverted_idx[term][TOTAL_FREQUENCY_INDEX] += frequency
                 else:  # term appears in lower case in dictionary
-                    self.inverted_idx[term_lower_form][IDF_INDEX] += 1
+                    self.inverted_idx[term_lower_form][DF_INDEX] += 1
                     self.inverted_idx[term_lower_form][TOTAL_FREQUENCY_INDEX] += frequency
 
             # If current term is lower case, number or punctuation change key to lower case
@@ -98,12 +98,12 @@ class Indexer:
                     self.inverted_idx[term] = [1, posting_prefix, frequency]
                 elif term_upper_form in self.inverted_idx:  # replace term in dictionary from upper case to lower case
                     if term.islower() or term.isupper():  # term is neither a number nor a punctuation
-                        self.inverted_idx[term] = [self.inverted_idx[term_upper_form][IDF_INDEX] + 1,
+                        self.inverted_idx[term] = [self.inverted_idx[term_upper_form][DF_INDEX] + 1,
                                                    self.inverted_idx[term_upper_form][POSTING_POINTER_INDEX],
                                                    self.inverted_idx[term_upper_form][TOTAL_FREQUENCY_INDEX]]
                         self.inverted_idx.pop(term_upper_form, None)  # remove upper case form from the dictionary
                     else:  # term is number or punctuation
-                        self.inverted_idx[term][IDF_INDEX] += 1
+                        self.inverted_idx[term][DF_INDEX] += 1
                         self.inverted_idx[term][TOTAL_FREQUENCY_INDEX] += frequency
                 else:  # term appears in lower case in dictionary
                     self.inverted_idx[term][TOTAL_FREQUENCY_INDEX] += frequency
@@ -177,13 +177,13 @@ class Indexer:
         for document in batch:
             doc_id = document.tweet_id
             max_tf = document.max_tf
-            unique_terms_number = document.unique_terms_number
+            unique_term_number = document.unique_term_number
             document_length = document.doc_length
             document_date = document.date
             document_dictionary = document.term_doc_dictionary
             document_entities_dictionary = document.entities
 
-            self.add_document_to_posting_batch(doc_id, max_tf, unique_terms_number, document_length, document_date,
+            self.add_document_to_posting_batch(doc_id, max_tf, unique_term_number, document_length, document_date,
                                                document_dictionary, document_entities_dictionary, batch_index)
 
         print('Finished parsing and indexing batch #{}. Starting to export files'.format(batch_index))
@@ -198,8 +198,10 @@ class Indexer:
         Index all legal entities recorded in the indexer's entity dictionary after processing all the corpus
         """
 
-        for entity, document_frequency, total_frequency in self.entity_dict.items():
+        for entity, frequencies in self.entity_dict.items():
 
+            document_frequency = frequencies[DF_INDEX]
+            total_frequency = frequencies[TOTAL_FREQUENCY_ENTITY]
             # Any posting file gets a name (pointer) to identify it
             # Pointer of a fully merged legal posting file is a string posting_pointer that equals to posting_prefix
             # where posting_prefix is the alphabet letter the token starts with

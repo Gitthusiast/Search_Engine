@@ -7,6 +7,9 @@ import stemmer
 
 
 class Parse:
+
+    numeric_counter = 0
+
     months = {"jan": "1", "january": "1", "feb": "2", "february": "2", "mar": "3", "march": "3", "apr": "4",
               "april": "4", "may": "5", "jun": "6", "june": "6", "jul": "7", "july": "7", "aug": "8", "august": "8",
               "sep": "9", "september": "9", "oct": "10", "october": "10", "nov": "11", "november": "11", "dec": "12",
@@ -150,6 +153,7 @@ class Parse:
         :param index: index of currently parsed token
         """
 
+        self.numeric_counter += 1
         token = text_tokens[index]
         numeric_token = float(token.replace(",", ""))
 
@@ -428,7 +432,7 @@ class Parse:
                         else:
                             # parsing emoji
                             emoji = [*findall(char).values()]  # unpack single emoji token and put in list
-                            if len(emoji) > 0 and emoji not in text_tokens:
+                            if len(emoji) > 0 and emoji[0] not in text_tokens:
                                 text_tokens.append(emoji[0])
                                 if len(emoji[0].split()) > 1:
                                     # add to text tokens emojis such as: 'smiling face', 'smiling', 'face'
